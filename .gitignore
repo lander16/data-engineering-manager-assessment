@@ -1,0 +1,22 @@
+# Source data and local warehouse
+data/
+*.duckdb
+*.duckdb.wal
+
+# Assessment and working files
+*.pdf
+AGENTS.md
+CLAUDE.md
+working/
+.claude/
+
+# dbt and Python
+target/
+logs/
+dbt_packages/
+.venv/
+__pycache__/
+.user.yml
+
+# System
+.DS_Store
