@@ -1,0 +1,10 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: Source CSVs as text, appended by `dbt run-operation load_raw`.
+    tables:
+      - name: payments
+      - name: receipts
+      - name: disbursements

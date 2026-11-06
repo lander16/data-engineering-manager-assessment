@@ -1,0 +1,6 @@
+name: remittances
+version: "1.0.0"
+profile: remittances
+
+vars:
+  data_dir: data
