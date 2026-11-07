@@ -13,3 +13,7 @@ vars:
   transacted_measure: customer_paid_usd
   recurring_window_days: 90
   chargeback_maturity_days: 120
+  provider_class:
+    low_below: 0.01
+    medium_below: 0.03
+    min_attempts: 1000

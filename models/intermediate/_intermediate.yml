@@ -89,3 +89,14 @@ unit_tests:
       rows:
         - {user_id: u1, beneficiary_key: b1, is_on_first_attempt: true}
         - {user_id: u1, beneficiary_key: b2, is_on_first_attempt: false}
+
+  - name: several_receipts_for_one_user_make_one_pair
+    model: int_user_beneficiaries
+    given:
+      - input: ref('int_payout_attempts')
+        rows:
+          - {user_id: u1, beneficiary_key: b1, attempt_number: 1}
+          - {user_id: u1, beneficiary_key: b1, attempt_number: 2}
+    expect:
+      rows:
+        - {user_id: u1, beneficiary_key: b1, is_on_first_attempt: true}

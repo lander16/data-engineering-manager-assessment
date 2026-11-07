@@ -72,6 +72,30 @@ models:
       - name: payment_month
         data_tests: [unique, not_null]
 
+  - name: mart_provider_failures
+    description: |
+      Failure rates and classes by payout provider, at the attempt grain.
+      Decision: routing, vendor management, and customer experience.
+      Definition: `failed_rate` is failed over delivered plus failed. `unsuccessful_terminal_rate` adds cancellations to both sides, and counts outcomes without assigning fault. `failure_class` uses the first rate, and `unsuccessful_class` uses the second, with the thresholds in `provider_class`.
+      Excludes: missing attempts, which have no provider, and in-flight attempts from the rates.
+      Limitation: rates aren't adjusted for country or payout mix. `failed` and `cancelled` aren't comparable across providers, so read `is_label_sensitive`. Providers 5 and 7 sit within sampling noise of the 3% line.
+    meta: {requirement: R9, assumptions: [A8, A9]}
+    columns:
+      - name: provider
+        data_tests: [unique, not_null]
+
+  - name: mart_shared_beneficiaries
+    description: |
+      Beneficiaries used by more than one user, across all observed attempts.
+      Decision: fraud and network review, and household insight.
+      Definition: a `beneficiary_key` with more than 1 distinct user.
+      Excludes: nothing. Proxy links through payer or amount aren't used, because they would invent connections.
+      Limitation: it's empty on this extract, because `beneficiary_id` behaves like a sender's saved recipient record. A global key would fill it with no SQL change.
+    meta: {requirement: R10, assumptions: [A7]}
+    columns:
+      - name: beneficiary_key
+        data_tests: [unique, not_null]
+
 unit_tests:
   - name: money_counts_once_and_payments_survive
     model: fct_remittances
@@ -269,3 +293,46 @@ unit_tests:
       rows:
         - {payment_month: 2026-04-01, is_mature: true, flagged_payments: 0}
         - {payment_month: 2026-05-01, is_mature: false, flagged_payments: 1}
+
+  - name: provider_classes_at_their_boundaries
+    model: mart_provider_failures
+    overrides:
+      vars:
+        provider_class: {low_below: 0.5, medium_below: 0.75, min_attempts: 4}
+    given:
+      - input: ref('int_payout_attempts')
+        rows:
+          - {provider: at_low_line, attempt_status: failed, attempt_number: 1, is_followed_by_delivery: false}
+          - {provider: at_low_line, attempt_status: failed, attempt_number: 1, is_followed_by_delivery: false}
+          - {provider: at_low_line, attempt_status: delivered, attempt_number: 1, is_followed_by_delivery: false}
+          - {provider: at_low_line, attempt_status: delivered, attempt_number: 1, is_followed_by_delivery: false}
+          - {provider: at_medium_line, attempt_status: failed, attempt_number: 1, is_followed_by_delivery: false}
+          - {provider: at_medium_line, attempt_status: failed, attempt_number: 1, is_followed_by_delivery: false}
+          - {provider: at_medium_line, attempt_status: failed, attempt_number: 1, is_followed_by_delivery: false}
+          - {provider: at_medium_line, attempt_status: delivered, attempt_number: 1, is_followed_by_delivery: false}
+          - {provider: too_few, attempt_status: failed, attempt_number: 1, is_followed_by_delivery: false}
+          - {provider: too_few, attempt_status: failed, attempt_number: 1, is_followed_by_delivery: false}
+          - {provider: too_few, attempt_status: delivered, attempt_number: 1, is_followed_by_delivery: false}
+          - {provider: label_sensitive, attempt_status: cancelled, attempt_number: 1, is_followed_by_delivery: false}
+          - {provider: label_sensitive, attempt_status: cancelled, attempt_number: 1, is_followed_by_delivery: false}
+          - {provider: label_sensitive, attempt_status: cancelled, attempt_number: 1, is_followed_by_delivery: false}
+          - {provider: label_sensitive, attempt_status: delivered, attempt_number: 1, is_followed_by_delivery: false}
+          - {provider: null, attempt_status: missing, attempt_number: 1, is_followed_by_delivery: false}
+    expect:
+      rows:
+        - {provider: at_low_line, failure_class: medium, unsuccessful_class: medium, is_label_sensitive: false}
+        - {provider: at_medium_line, failure_class: high, unsuccessful_class: high, is_label_sensitive: false}
+        - {provider: too_few, failure_class: insufficient_volume, unsuccessful_class: insufficient_volume, is_label_sensitive: false}
+        - {provider: label_sensitive, failure_class: low, unsuccessful_class: high, is_label_sensitive: true}
+
+  - name: two_users_on_one_key_are_shared_even_on_a_retry
+    model: mart_shared_beneficiaries
+    given:
+      - input: ref('int_user_beneficiaries')
+        rows:
+          - {user_id: u1, beneficiary_key: shared, is_on_first_attempt: true}
+          - {user_id: u2, beneficiary_key: shared, is_on_first_attempt: false}
+          - {user_id: u3, beneficiary_key: alone, is_on_first_attempt: true}
+    expect:
+      rows:
+        - {beneficiary_key: shared, users: 2}
