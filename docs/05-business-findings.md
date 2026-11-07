@@ -67,7 +67,7 @@ xychart-beta
     bar [4.4, 4.5, 4.7, 5.1, 4.5, 5.6, 5.1]
 ```
 
-August is left out, because September is partial. 83% of top user-months are a single remittance, so a month's top group mostly reflects one large send.
+August is left out, because September is partial. It reads 3.3%, the low end quoted in docs 01 and 02. 83% of top user-months are a single remittance, so a month's top group mostly reflects one large send.
 
 **Why it matters.** A list of top users built from one month would change almost completely the next month.
 

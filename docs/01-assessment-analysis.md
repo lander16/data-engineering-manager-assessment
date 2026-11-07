@@ -443,7 +443,7 @@ Severity should be intentional. Structural problems such as duplicate primary ke
 
 ## 8. Decisions
 
-[02-assumptions-and-rules.md](02-assumptions-and-rules.md) lists each assumption with its limitation and evidence, [03-project-design.md](03-project-design.md) turns them into a project, and [04-data-quality-policy.md](04-data-quality-policy.md) sets the data quality rules.
+[02-assumptions-and-rules.md](02-assumptions-and-rules.md) lists each assumption with its limitation and evidence, [03-project-design.md](03-project-design.md) turns them into a project, [04-data-quality-policy.md](04-data-quality-policy.md) sets the data quality rules, and [05-business-findings.md](05-business-findings.md) reads the results as a business would.
 
 ## Sources
 
