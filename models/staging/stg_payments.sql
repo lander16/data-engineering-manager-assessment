@@ -1,3 +1,5 @@
+{{ config(materialized='incremental', unique_key='payment_id') }}
+
 with typed as (
     select
         id as payment_id,
@@ -13,6 +15,9 @@ with typed as (
         _source_file,
         _loaded_at
     from {{ source('raw', 'payments') }}
+    {% if is_incremental() %}
+    where _loaded_at > (select max(_loaded_at) from {{ this }})
+    {% endif %}
 )
 
 select
