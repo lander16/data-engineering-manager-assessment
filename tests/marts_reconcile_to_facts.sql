@@ -1,9 +1,9 @@
 with fact as (
     select
         sum(transacted_usd) as transacted_usd,
-        count(*) filter (where is_delivered_remittance) as delivered_remittances,
-        sum(customer_paid_usd) filter (where is_chargeback_eligible) as settled_value_usd,
-        count(*) filter (where has_chargeback and is_chargeback_eligible) as flagged_payments
+        count(case when is_delivered_remittance then 1 end) as delivered_remittances,
+        sum(case when is_chargeback_eligible then customer_paid_usd end) as settled_value_usd,
+        count(case when has_chargeback and is_chargeback_eligible then 1 end) as flagged_payments
     from {{ ref('fct_remittances') }}
 ),
 

@@ -2,9 +2,9 @@ with monthly as (
     select
         payment_month,
         count(*) as settled_payments,
-        count(*) filter (where has_chargeback) as flagged_payments,
+        count(case when has_chargeback then 1 end) as flagged_payments,
         sum(customer_paid_usd) as settled_value_usd,
-        coalesce(sum(customer_paid_usd) filter (where has_chargeback), 0) as flagged_payment_value_usd,
+        coalesce(sum(case when has_chargeback then customer_paid_usd end), 0) as flagged_payment_value_usd,
         max(extract_end_at) as extract_end_at
     from {{ ref('fct_remittances') }}
     where is_chargeback_eligible

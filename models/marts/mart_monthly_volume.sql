@@ -6,12 +6,12 @@ with payments as (
 monthly as (
     select
         payment_month,
-        count(*) filter (where is_delivered_remittance) as delivered_remittances,
+        count(case when is_delivered_remittance then 1 end) as delivered_remittances,
         sum(transacted_usd) as transacted_usd,
-        sum(value_sent_usd) filter (where is_delivered_remittance) as value_sent_usd,
-        sum(fee_usd) filter (where is_delivered_remittance) as fee_usd,
-        sum(promotion_usd) filter (where is_delivered_remittance) as promotion_usd,
-        sum(customer_paid_usd) filter (where is_successful_payment) as all_successful_payments_usd,
+        sum(case when is_delivered_remittance then value_sent_usd end) as value_sent_usd,
+        sum(case when is_delivered_remittance then fee_usd end) as fee_usd,
+        sum(case when is_delivered_remittance then promotion_usd end) as promotion_usd,
+        sum(case when is_successful_payment then customer_paid_usd end) as all_successful_payments_usd,
         max(extract_end_at) as extract_end_at
     from payments
     group by 1
@@ -44,9 +44,9 @@ senders as (
     select
         payment_month,
         count(*) as active_senders,
-        count(*) filter (where payment_month = first_month) as first_seen_senders,
-        count(*) filter (where payment_month > first_month) as returning_senders,
-        count(*) filter (where running_usd - transacted_usd < 0.5 * month_usd) * 1.0 / count(*) as top_50_pct_user_share
+        count(case when payment_month = first_month then 1 end) as first_seen_senders,
+        count(case when payment_month > first_month then 1 end) as returning_senders,
+        count(case when running_usd - transacted_usd < 0.5 * month_usd then 1 end) * 1.0 / count(*) as top_50_pct_user_share
     from ranked
     group by 1
 )

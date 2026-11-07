@@ -2,9 +2,9 @@ with attempt_rollup as (
     select
         payment_id,
         count(*) as attempt_count,
-        count(*) filter (where attempt_status = 'delivered') as delivered_attempts,
-        count(*) filter (where attempt_status = 'in_flight') as in_flight_attempts,
-        count(*) filter (where attempt_status = 'missing') as missing_attempts,
+        count(case when attempt_status = 'delivered' then 1 end) as delivered_attempts,
+        count(case when attempt_status = 'in_flight' then 1 end) as in_flight_attempts,
+        count(case when attempt_status = 'missing' then 1 end) as missing_attempts,
         max(case when is_primary_attempt then amount_charged_usd + promotion_usd end) as value_sent_usd,
         max(case when is_primary_attempt then fee_usd end) as fee_usd,
         max(case when is_primary_attempt then promotion_usd end) as promotion_usd,

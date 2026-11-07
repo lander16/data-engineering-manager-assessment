@@ -9,14 +9,13 @@ with actual as (
     union all select 'chargebacks', sum(flagged_payments) from {{ ref('mart_chargeback_rate') }}
 ),
 
-expected(metric, value) as (
-    values
-        ('payments', 788976),
-        ('delivered_remittances', 720630),
-        ('transacted_usd', 237075837),
-        ('top_users', 59511),
-        ('recurring_users', 133760),
-        ('chargebacks', 526)
+expected as (
+    select 'payments' as metric, 788976 as value
+    union all select 'delivered_remittances', 720630
+    union all select 'transacted_usd', 237075837
+    union all select 'top_users', 59511
+    union all select 'recurring_users', 133760
+    union all select 'chargebacks', 526
 )
 
 select a.metric, a.value as actual, e.value as expected

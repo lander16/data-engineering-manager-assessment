@@ -51,18 +51,19 @@ ordered as (
     from joined
 ),
 
-delivery as (
+delivered_numbers as (
     select
-        *,
-        min(case when attempt_status = 'delivered' then attempt_number end)
-            over (partition by payment_id) as first_delivered_number,
-        max(case when attempt_status = 'delivered' then attempt_number end)
-            over (partition by payment_id) as last_delivered_number
+        payment_id,
+        min(attempt_number) as first_delivered_number,
+        max(attempt_number) as last_delivered_number
     from ordered
+    where attempt_status = 'delivered'
+    group by 1
 )
 
 select
-    * exclude (first_delivered_number, last_delivered_number),
-    coalesce(attempt_number = first_delivered_number, false) as is_primary_attempt,
-    coalesce(attempt_status in ('failed', 'cancelled') and last_delivered_number > attempt_number, false) as is_followed_by_delivery
-from delivery
+    o.*,
+    coalesce(o.attempt_number = d.first_delivered_number, false) as is_primary_attempt,
+    coalesce(o.attempt_status in ('failed', 'cancelled') and d.last_delivered_number > o.attempt_number, false) as is_followed_by_delivery
+from ordered as o
+left join delivered_numbers as d using (payment_id)

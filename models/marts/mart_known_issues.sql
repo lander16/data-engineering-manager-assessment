@@ -70,7 +70,7 @@ issues as (
     from payments
     where is_successful_payment
         and payout_outcome in ('in_flight', 'missing_payout')
-        and created_at < extract_end_at - interval 30 day
+        and created_at < {{ dbt.dateadd('day', -30, 'extract_end_at') }}
 
     union all
     select 'ach_settlement_pending', count(*), sum(customer_paid_usd), 10
@@ -109,11 +109,11 @@ issues as (
 
     union all
     select 'chronology_reversal', count(*), null, 0
-    from attempts where disbursement_updated_at < date_trunc('second', disbursement_created_at)
+    from attempts where disbursement_updated_at < {{ dbt.date_trunc('second', 'disbursement_created_at') }}
 
     union all
     select 'disbursement_before_receipt', count(*), null, 753
-    from attempts where disbursement_created_at < attempt_at - interval 1 minute
+    from attempts where disbursement_created_at < {{ dbt.dateadd('minute', -1, 'attempt_at') }}
 
     union all
     select 'payment_primary_attempt_gap', count(*), sum(round(customer_paid_usd, 2) - round(value_sent_usd - promotion_usd + fee_usd, 2)), 887

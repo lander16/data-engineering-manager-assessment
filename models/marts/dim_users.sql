@@ -1,3 +1,5 @@
+{% set days_since_first = dbt.datediff('first_delivered_at', 'created_at', 'millisecond') ~ ' / 86400000.0' %}
+
 with users as (
     select distinct user_id
     from {{ ref('fct_remittances') }}
@@ -8,9 +10,10 @@ remittances as (
         user_id,
         transacted_usd,
         created_at,
+        payment_month,
         extract_end_at,
         min(created_at) over (partition by user_id) as first_delivered_at,
-        epoch(created_at - lag(created_at) over (partition by user_id order by created_at, payment_id)) / 86400.0 as gap_days
+        {{ dbt.datediff('lag(created_at) over (partition by user_id order by created_at, payment_id)', 'created_at', 'millisecond') }} / 86400000.0 as gap_days
     from {{ ref('fct_remittances') }}
     where is_delivered_remittance
 ),
@@ -21,13 +24,11 @@ activity as (
         count(*) as delivered_remittances,
         sum(transacted_usd) as transacted_usd,
         min(first_delivered_at) as first_delivered_at,
+        min(payment_month) as first_delivered_month,
         max(created_at) as last_delivered_at,
         max(extract_end_at) as extract_end_at,
-        coalesce(bool_or(gap_days > 1 and gap_days <= {{ var('recurring_window_days') }}), false) as is_recurring,
-        bool_or(
-            epoch(created_at - first_delivered_at) / 86400.0 > 1
-            and epoch(created_at - first_delivered_at) / 86400.0 <= {{ var('recurring_window_days') }}
-        ) as has_repeat_in_window
+        coalesce({{ dbt.bool_or("gap_days > 1 and gap_days <= " ~ var('recurring_window_days')) }}, false) as is_recurring,
+        {{ dbt.bool_or(days_since_first ~ " > 1 and " ~ days_since_first ~ " <= " ~ var('recurring_window_days')) }} as has_repeat_in_window
     from remittances
     group by 1
 ),
@@ -56,7 +57,7 @@ select
     coalesce(r.transacted_usd, 0) as transacted_usd,
     r.first_delivered_at,
     r.last_delivered_at,
-    cast(date_trunc('month', r.first_delivered_at at time zone 'UTC') as date) as first_delivered_month,
+    r.first_delivered_month,
     case
         when r.user_id is null then 'no_delivered_volume'
         when r.running_usd - r.transacted_usd < 0.5 * r.total_usd then 'top_50_pct_volume'
@@ -64,7 +65,7 @@ select
     end as volume_class,
     coalesce(r.is_recurring, false) as is_recurring,
     case
-        when r.first_delivered_at + interval ({{ var('recurring_window_days') }}) day <= r.extract_end_at
+        when {{ dbt.dateadd('day', var('recurring_window_days'), 'r.first_delivered_at') }} <= r.extract_end_at
             then r.has_repeat_in_window
     end as repeat_within_window,
     case

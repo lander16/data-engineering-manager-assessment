@@ -4,15 +4,15 @@ with counts as (
     select
         provider,
         count(*) as attempts,
-        count(*) filter (where attempt_status = 'delivered') as delivered,
-        count(*) filter (where attempt_status = 'failed') as failed,
-        count(*) filter (where attempt_status = 'cancelled') as cancelled,
-        count(*) filter (where attempt_status = 'in_flight') as in_flight,
-        count(*) filter (where attempt_status = 'delivered' and attempt_number = 1) as first_delivered,
-        count(*) filter (where attempt_status = 'failed' and attempt_number = 1) as first_failed,
-        count(*) filter (where attempt_status = 'delivered' and attempt_number > 1) as retry_delivered,
-        count(*) filter (where attempt_status = 'failed' and attempt_number > 1) as retry_failed,
-        count(*) filter (where is_followed_by_delivery) as rescued_attempts
+        count(case when attempt_status = 'delivered' then 1 end) as delivered,
+        count(case when attempt_status = 'failed' then 1 end) as failed,
+        count(case when attempt_status = 'cancelled' then 1 end) as cancelled,
+        count(case when attempt_status = 'in_flight' then 1 end) as in_flight,
+        count(case when attempt_status = 'delivered' and attempt_number = 1 then 1 end) as first_delivered,
+        count(case when attempt_status = 'failed' and attempt_number = 1 then 1 end) as first_failed,
+        count(case when attempt_status = 'delivered' and attempt_number > 1 then 1 end) as retry_delivered,
+        count(case when attempt_status = 'failed' and attempt_number > 1 then 1 end) as retry_failed,
+        count(case when is_followed_by_delivery then 1 end) as rescued_attempts
     from {{ ref('int_payout_attempts') }}
     where attempt_status <> 'missing'
     group by 1
