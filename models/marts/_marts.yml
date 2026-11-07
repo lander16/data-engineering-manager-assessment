@@ -27,7 +27,7 @@ models:
     description: |
       Users and volume by class and segment. Each segment type adds up to all users.
       Decision: concentration, retention, and recipient patterns at a glance.
-      Definition: `top_50_pct_volume` is the top 50% of extract volume, including the user who crosses 50%. Recurring means two consecutive delivered remittances more than 1 day and at most 90 days apart. Beneficiary segments count first observed attempts.
+      Definition: `top_50_pct_volume` is the top 50% of extract volume, including the user who crosses 50%. Recurring means two consecutive delivered remittances more than 1 day apart and within `recurring_window_days`. Beneficiary segments count first observed attempts.
       Excludes: nothing. Users with no delivered remittance have their own segment.
       Limitation: the top group isn't a stable VIP list, because few users stay in a month's top group.
     meta: {requirement: [R7, R8, R10], assumptions: [A5, A6, A7]}
@@ -40,7 +40,7 @@ models:
     description: |
       Recurring share and repeat rate by first delivered month.
       Decision: compare retention across cohorts.
-      Definition: `recurring_share` uses the recurring rule. `repeat_rate` is the share with another delivered remittance from over 1 day to 90 days after the first send, among users with a full window.
+      Definition: `recurring_share` uses the recurring rule. `repeat_rate` is the share with another delivered remittance from over 1 day to `recurring_window_days` after the first send, among users with a full window.
       Excludes: users with no delivered remittance.
       Limitation: recent cohorts have had less time to become recurring, so compare them with `repeat_rate`. Activity before January 2026 isn't visible.
     meta: {requirement: R8, assumptions: [A5]}
@@ -60,16 +60,45 @@ unit_tests:
           - {payment_id: two_delivered, payment_status: SUCCESSFUL, amount_usd: 103.00, created_at: '2026-01-01 00:00:00+00'}
           - {payment_id: no_receipt, payment_status: SUCCESSFUL, amount_usd: 1.00, created_at: '2026-01-02 00:00:00+00'}
           - {payment_id: failed_paid_out, payment_status: FAILED, amount_usd: 50.00, created_at: '2026-01-03 00:00:00+00'}
+          - {payment_id: in_flight_beats_missing, payment_status: SUCCESSFUL, amount_usd: 5.00, created_at: '2026-01-03 00:00:00+00'}
+          - {payment_id: missing_beats_failed, payment_status: SUCCESSFUL, amount_usd: 5.00, created_at: '2026-01-03 00:00:00+00'}
+          - {payment_id: all_failed, payment_status: SUCCESSFUL, amount_usd: 5.00, created_at: '2026-01-03 00:00:00+00'}
       - input: ref('int_payout_attempts')
         rows:
           - {payment_id: two_delivered, attempt_status: delivered, is_primary_attempt: true, amount_charged_usd: 100.00, promotion_usd: 0.00, fee_usd: 3.00}
           - {payment_id: two_delivered, attempt_status: delivered, is_primary_attempt: false, amount_charged_usd: 100.00, promotion_usd: 0.00, fee_usd: 3.00}
           - {payment_id: failed_paid_out, attempt_status: delivered, is_primary_attempt: true, amount_charged_usd: 47.00, promotion_usd: 0.00, fee_usd: 3.00}
+          - {payment_id: in_flight_beats_missing, attempt_status: missing, is_primary_attempt: false}
+          - {payment_id: in_flight_beats_missing, attempt_status: in_flight, is_primary_attempt: false}
+          - {payment_id: missing_beats_failed, attempt_status: failed, is_primary_attempt: false}
+          - {payment_id: missing_beats_failed, attempt_status: missing, is_primary_attempt: false}
+          - {payment_id: all_failed, attempt_status: failed, is_primary_attempt: false}
+          - {payment_id: all_failed, attempt_status: cancelled, is_primary_attempt: false}
     expect:
       rows:
         - {payment_id: two_delivered, payout_outcome: multiple_delivered, is_delivered_remittance: true, transacted_usd: 103.00, value_sent_usd: 100.00, fee_usd: 3.00, extra_delivered_value_usd: 100.00}
         - {payment_id: no_receipt, payout_outcome: no_receipt, is_delivered_remittance: false, transacted_usd: null, value_sent_usd: null, fee_usd: null, extra_delivered_value_usd: null}
         - {payment_id: failed_paid_out, payout_outcome: delivered, is_delivered_remittance: false, transacted_usd: null, value_sent_usd: 47.00, fee_usd: 3.00, extra_delivered_value_usd: null}
+        - {payment_id: in_flight_beats_missing, payout_outcome: in_flight, is_delivered_remittance: false, transacted_usd: null, value_sent_usd: null, fee_usd: null, extra_delivered_value_usd: null}
+        - {payment_id: missing_beats_failed, payout_outcome: missing_payout, is_delivered_remittance: false, transacted_usd: null, value_sent_usd: null, fee_usd: null, extra_delivered_value_usd: null}
+        - {payment_id: all_failed, payout_outcome: not_delivered, is_delivered_remittance: false, transacted_usd: null, value_sent_usd: null, fee_usd: null, extra_delivered_value_usd: null}
+
+  - name: extract_end_is_the_latest_payment
+    model: fct_remittances
+    overrides:
+      vars:
+        transacted_measure: customer_paid_usd
+    given:
+      - input: ref('stg_payments')
+        rows:
+          - {payment_id: p1, created_at: '2026-01-01 00:00:00+00'}
+          - {payment_id: p2, created_at: '2026-01-03 00:00:00+00'}
+      - input: ref('int_payout_attempts')
+        rows: []
+    expect:
+      rows:
+        - {payment_id: p1, extract_end_at: '2026-01-03 00:00:00+00'}
+        - {payment_id: p2, extract_end_at: '2026-01-03 00:00:00+00'}
 
   - name: top_class_includes_the_crossing_user
     model: dim_users
@@ -153,6 +182,25 @@ unit_tests:
         - {user_id: ninety, is_recurring: true}
         - {user_id: ninety_one, is_recurring: false}
         - {user_id: daily, is_recurring: false}
+
+  - name: repeat_is_null_without_a_full_window
+    model: dim_users
+    overrides: *dim_vars
+    given:
+      - input: ref('fct_remittances')
+        rows:
+          - {payment_id: a1, user_id: exact_window_repeat, is_delivered_remittance: true, transacted_usd: 1, created_at: '2026-01-01 00:00:00+00', extract_end_at: '2026-04-01 00:00:00+00'}
+          - {payment_id: a2, user_id: exact_window_repeat, is_delivered_remittance: true, transacted_usd: 1, created_at: '2026-02-01 00:00:00+00', extract_end_at: '2026-04-01 00:00:00+00'}
+          - {payment_id: b1, user_id: exact_window_no_repeat, is_delivered_remittance: true, transacted_usd: 1, created_at: '2026-01-01 00:00:00+00', extract_end_at: '2026-04-01 00:00:00+00'}
+          - {payment_id: c1, user_id: short_window, is_delivered_remittance: true, transacted_usd: 1, created_at: '2026-01-02 00:00:00+00', extract_end_at: '2026-04-01 00:00:00+00'}
+          - {payment_id: c2, user_id: short_window, is_delivered_remittance: true, transacted_usd: 1, created_at: '2026-02-01 00:00:00+00', extract_end_at: '2026-04-01 00:00:00+00'}
+      - input: ref('int_user_beneficiaries')
+        rows: []
+    expect:
+      rows:
+        - {user_id: exact_window_repeat, repeat_within_window: true}
+        - {user_id: exact_window_no_repeat, repeat_within_window: false}
+        - {user_id: short_window, repeat_within_window: null}
 
   - name: retry_only_beneficiary_does_not_count_toward_the_segment
     model: dim_users

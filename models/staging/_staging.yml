@@ -6,6 +6,10 @@ models:
     columns:
       - name: payment_id
         data_tests: [unique, not_null]
+      - name: user_id
+        data_tests: [not_null]
+      - name: amount_usd
+        data_tests: [not_null]
 
   - name: stg_receipts
     description: One row per receipt. A receipt is one payout attempt.
@@ -21,6 +25,12 @@ models:
                 field: payment_id
       - name: disbursement_id
         data_tests: [unique]
+      - name: amount_charged_usd
+        data_tests: [not_null]
+      - name: fee_usd
+        data_tests: [not_null]
+      - name: promotion_usd
+        data_tests: [not_null]
 
   - name: stg_disbursements
     description: One row per disbursement, with lowercase statuses.
