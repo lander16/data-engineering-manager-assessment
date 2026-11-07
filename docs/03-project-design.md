@@ -170,8 +170,8 @@ All models are tables in DuckDB's `main` schema, and `raw` is the only other sch
 │   ├── top_users_cross_half.sql
 │   ├── known_issues_within_baseline.sql
 │   └── extract_golden_numbers.sql
-├── docs/                   # assessment analysis, assumptions, design
-└── analysis/               # profiling SQL, results, and findings
+├── docs/                   # assessment analysis, assumptions, design, quality policy
+└── analysis/               # profiling SQL, results, findings, semantic check
 ```
 
 ### 3.4 Models
@@ -334,7 +334,7 @@ Four of these need a definition:
 | Chargeback maturity | `mart_chargeback_rate` | |
 | Issue definitions and baselines | `mart_known_issues` | |
 
-Only `fct_remittances` and `mart_known_issues` may read `payment_status`.
+Only `fct_remittances` and `mart_known_issues` may read `payment_status`. The semantic layer exposes it as a slice, and no metric filters on it.
 
 ### 3.6 Configuration
 
@@ -353,6 +353,8 @@ vars:
     medium_below: 0.03
     min_attempts: 1000
 ```
+
+`dbt_project.yml` also puts every model and test in the `remittance_analytics` group, and sets `access` by layer. Section 3.13 explains why.
 
 `profiles.yml` sits in the repo root, with `path: felix.duckdb` and `TimeZone: UTC` under `settings`. The explicit month expression protects the numbers either way.
 
@@ -454,15 +456,19 @@ Unit tests cover logic the real data can't protect:
 | `mart_provider_failures` | A rate exactly on each class line and a count just under the minimum land in the right class, using small thresholds so fixtures stay short; missing attempts add no row; differing classes set `is_label_sensitive` |
 | `mart_shared_beneficiaries` | Two users on one key return one row, including when one reached it only on a retry; a key with one user returns none |
 
+`analysis/check_semantic.py` sits outside `dbt build`. It compares the semantic metrics to the marts, as section 3.12 describes.
+
 ### 3.9 Documentation
 
 | Content | Home |
 |---|---|
 | Metric definition | Mart description in `_marts.yml`, always: Decision, Definition, Excludes, Limitation |
 | Requirement and assumption links | `meta` on each mart, such as `{requirement: R9, assumptions: [A8, A9]}` |
+| Semantic metrics | `_semantic.yml`, which reads the columns the models own |
+| Public interface and data products | `access` in `dbt_project.yml`, and section 3.13 |
 | Evidence | `analysis/` and `docs/` |
 
-The README stands alone and stays short. It covers how to run it, the lineage, a map from R1 to R13 to files, a results section with each metric's actual output and the command that reproduces it, adopted assumptions, data observations for follow-up in neutral terms, what would change on BigQuery, and limitations. The numbered docs are supporting evidence, so a reviewer never needs them to understand the answer.
+The README stands alone and stays short. It covers how to run it, the lineage, a map from R1 to R13 to files, a results section with each metric's actual output and the command that reproduces it, adopted assumptions, data observations for follow-up in neutral terms, what would change on BigQuery, limitations, and an ownership plan. The numbered docs are supporting evidence, so a reviewer never needs them to understand the answer.
 
 **BigQuery changes:** replace `load_raw` with `bq load` or external tables, change type names in the 3 staging models, and adjust the 3 UTC date expressions and the conflict test. Models use standard SQL and dbt's cross-database macros, and `QUALIFY` works on both. Nothing has run on BigQuery yet.
 

@@ -31,6 +31,7 @@ An unknown status fails on purpose. A new provider value must get a mapping befo
 | Known issues | No issue grows past its baseline | `known_issues_within_baseline` |
 | Headlines | Pinned numbers hold | `extract_golden_numbers` |
 | Logic | Rules hold on synthetic edge cases | 19 unit tests |
+| Semantic layer | Metrics match the marts | `analysis/check_semantic.py`, run by hand because MetricFlow is optional |
 
 ## Known issues by owner
 

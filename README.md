@@ -1,8 +1,6 @@
 # Remittance Analytics
 
-A dbt and DuckDB project that models a remittance business from 3 source extracts: payments, receipts, and disbursements. It answers the 6 metrics in the assessment, and every number below can be rerun with the commands here.
-
-The extract covers 2026-01-01 to 2026-09-22 UTC, so September is partial.
+A dbt and DuckDB project that models a remittance business from 3 source extracts: payments, receipts, and disbursements. It answers the 6 metrics in the assessment, and every number below can be rerun with the commands here. The extract covers 2026-01-01 to 2026-09-22 UTC, so September is partial.
 
 ## Run it
 
@@ -10,17 +8,8 @@ Requires Python 3.13. Put `payments.csv`, `receipts.csv`, and `disbursements.csv
 
 ```bash
 python3.13 -m venv .venv && source .venv/bin/activate
-```
-
-```bash
 pip install -r requirements.txt
-```
-
-```bash
 dbt run-operation load_raw
-```
-
-```bash
 dbt build
 ```
 
@@ -141,7 +130,7 @@ The assessment leaves these open. `docs/02-assumptions-and-rules.md` gives the r
 
 ## Limitations
 
-- Rates aren't adjusted for country or payout mix.
+- `mart_provider_failures` rates aren't adjusted for country or payout mix. `analysis/sql/17_provider_mix.sql` compares providers on the same routes.
 - The chargeback data has no dispute date or outcome, so rates are by payment month.
 - The cut-off is the latest payment in the data. A batch of only late updates doesn't move it.
 - Activity before January 2026 isn't visible.
@@ -168,10 +157,6 @@ After that, I'd open it up as self-service: teams request access to data product
 
 ## More detail
 
-- `docs/01-assessment-analysis.md` explains the flow and the ambiguous definitions.
-- `docs/02-assumptions-and-rules.md` holds rules, rationale, and evidence.
-- `docs/03-project-design.md` holds the design.
-- `docs/04-data-quality-policy.md` holds the severity rules, owners, and response steps.
-- `analysis/` holds the profiling SQL, results, and findings.
+`docs/` holds the assessment analysis (01), rules and evidence (02), design (03), and data quality policy (04). `analysis/` holds the profiling SQL, results, and findings.
 
 AI coding assistants helped with profiling, drafting documents, writing the SQL, and reviewing it. The definitions and decisions are mine, and I checked the numbers against the data.
