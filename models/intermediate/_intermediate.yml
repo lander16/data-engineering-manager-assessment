@@ -1,0 +1,58 @@
+version: 2
+
+models:
+  - name: int_payout_attempts
+    description: One row per payout attempt, which is one receipt plus its disbursement. Owns the attempt status rule.
+    data_tests:
+      - unique:
+          arguments:
+            column_name: "case when is_primary_attempt then payment_id end"
+    columns:
+      - name: receipt_id
+        data_tests: [unique, not_null]
+      - name: attempt_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [delivered, failed, cancelled, in_flight, missing]
+
+  - name: int_user_beneficiaries
+    description: One row per user and beneficiary pair, across all observed attempts.
+    data_tests:
+      - unique:
+          arguments:
+            column_name: "user_id || '|' || beneficiary_key"
+
+unit_tests:
+  - name: status_decides_and_conflicts_are_flagged
+    model: int_payout_attempts
+    given:
+      - input: ref('stg_receipts')
+        rows:
+          - {receipt_id: r1, payment_id: p1, disbursement_id: d1, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: r2, payment_id: p2, disbursement_id: d2, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: r3, payment_id: p3, disbursement_id: orphan, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: r4, payment_id: p4, disbursement_id: d4, created_at: '2026-01-01 00:00:00+00'}
+      - input: ref('stg_disbursements')
+        rows:
+          - {disbursement_id: d1, status: cancelled, raw_status: paid}
+          - {disbursement_id: d2, status: failed, raw_status: cancelled}
+          - {disbursement_id: d4, status: brand_new_status, raw_status: brand_new_status}
+    expect:
+      rows:
+        - {receipt_id: r1, attempt_status: cancelled, status_conflict_type: cancelled_raw_paid}
+        - {receipt_id: r2, attempt_status: failed, status_conflict_type: failed_raw_cancelled}
+        - {receipt_id: r3, attempt_status: missing, status_conflict_type: null}
+        - {receipt_id: r4, attempt_status: unknown, status_conflict_type: null}
+
+  - name: retry_only_beneficiary_keeps_its_pair
+    model: int_user_beneficiaries
+    given:
+      - input: ref('int_payout_attempts')
+        rows:
+          - {user_id: u1, beneficiary_key: b1, attempt_number: 1}
+          - {user_id: u1, beneficiary_key: b2, attempt_number: 2}
+    expect:
+      rows:
+        - {user_id: u1, beneficiary_key: b1, is_on_first_attempt: true}
+        - {user_id: u1, beneficiary_key: b2, is_on_first_attempt: false}
