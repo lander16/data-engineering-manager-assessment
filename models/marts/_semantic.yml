@@ -1,0 +1,207 @@
+version: 2
+
+models:
+  - name: metricflow_time_spine
+    description: One row per day. MetricFlow needs it to validate time dimensions. Extend the range when data passes 2026.
+    time_spine:
+      standard_granularity_column: date_day
+    columns:
+      - name: date_day
+        description: Calendar day.
+        granularity: day
+
+semantic_models:
+  - name: remittances
+    description: One row per payment, from `fct_remittances`.
+    model: ref('fct_remittances')
+    defaults:
+      agg_time_dimension: payment_month
+    entities:
+      - name: payment
+        type: primary
+        expr: payment_id
+      - name: user
+        type: foreign
+        expr: user_id
+    dimensions:
+      - name: payment_month
+        type: time
+        type_params:
+          time_granularity: month
+      - name: payment_type
+        type: categorical
+      - name: payment_status
+        type: categorical
+      - name: payout_outcome
+        type: categorical
+    measures:
+      - name: transacted_usd
+        agg: sum
+      - name: delivered_remittances
+        agg: count
+        expr: case when is_delivered_remittance then 1 end
+      - name: settled_payments
+        agg: count
+        expr: case when is_chargeback_eligible then 1 end
+      - name: flagged_payments
+        agg: count
+        expr: case when is_chargeback_eligible and has_chargeback then 1 end
+      - name: settled_value_usd
+        agg: sum
+        expr: case when is_chargeback_eligible then customer_paid_usd end
+      - name: flagged_payment_value_usd
+        agg: sum
+        expr: case when is_chargeback_eligible and has_chargeback then customer_paid_usd end
+
+  - name: payout_attempts
+    description: One row per payout attempt, from `int_payout_attempts`.
+    model: ref('int_payout_attempts')
+    defaults:
+      agg_time_dimension: attempt_at
+    entities:
+      - name: attempt
+        type: primary
+        expr: receipt_id
+      - name: payment
+        type: foreign
+        expr: payment_id
+      - name: user
+        type: foreign
+        expr: user_id
+    dimensions:
+      - name: attempt_at
+        type: time
+        type_params:
+          time_granularity: day
+      - name: provider
+        type: categorical
+      - name: attempt_status
+        type: categorical
+      - name: country_code
+        type: categorical
+      - name: payout_type
+        type: categorical
+    measures:
+      - name: failed_attempts
+        agg: count
+        expr: case when attempt_status = 'failed' then 1 end
+      - name: decided_attempts
+        agg: count
+        expr: case when attempt_status in ('delivered', 'failed') then 1 end
+
+  - name: users
+    description: One row per user, from `dim_users`. Over time, these metrics follow the first delivered month.
+    model: ref('dim_users')
+    defaults:
+      agg_time_dimension: first_delivered_month
+    entities:
+      - name: user
+        type: primary
+        expr: user_id
+    dimensions:
+      - name: first_delivered_month
+        type: time
+        type_params:
+          time_granularity: month
+      - name: volume_class
+        type: categorical
+      - name: is_recurring
+        type: categorical
+      - name: beneficiary_segment
+        type: categorical
+    measures:
+      - name: top_volume_users
+        agg: count
+        expr: case when volume_class = 'top_50_pct_volume' then 1 end
+      - name: recurring_users
+        agg: count
+        expr: case when is_recurring then 1 end
+
+metrics:
+  - name: transacted_usd
+    label: Amount transacted
+    description: Customer-paid USD on delivered remittances. See A1 in docs/02-assumptions-and-rules.md.
+    type: simple
+    type_params:
+      measure: transacted_usd
+
+  - name: delivered_remittances
+    label: Delivered remittances
+    description: Successful payments with a delivered payout.
+    type: simple
+    type_params:
+      measure: delivered_remittances
+
+  - name: top_volume_users
+    label: Users behind half of volume
+    description: The largest senders that together reach 50% of all-time transacted USD. Don't sum it across months. Each month has its own ranking in `mart_monthly_volume`.
+    type: simple
+    type_params:
+      measure: top_volume_users
+
+  - name: recurring_users
+    label: Recurring customers
+    description: Users with two consecutive delivered remittances over 1 day and at most `recurring_window_days` apart.
+    type: simple
+    type_params:
+      measure: recurring_users
+
+  - name: failed_attempts
+    label: Failed attempts
+    type: simple
+    type_params:
+      measure: failed_attempts
+
+  - name: decided_attempts
+    label: Delivered or failed attempts
+    type: simple
+    type_params:
+      measure: decided_attempts
+
+  - name: provider_failed_rate
+    label: Failed disbursement rate
+    description: Failed over delivered plus failed. Group by provider. Cancelled attempts stay out, so read `mart_provider_failures.unsuccessful_terminal_rate` beside it.
+    type: ratio
+    type_params:
+      numerator: failed_attempts
+      denominator: decided_attempts
+
+  - name: settled_payments
+    label: Settled payments
+    type: simple
+    type_params:
+      measure: settled_payments
+
+  - name: flagged_payments
+    label: Payments flagged with a chargeback
+    type: simple
+    type_params:
+      measure: flagged_payments
+
+  - name: chargeback_count_rate
+    label: Chargeback rate by count
+    description: Flagged over settled payments. Recent months can still gain chargebacks, so check `mart_chargeback_rate.is_mature`.
+    type: ratio
+    type_params:
+      numerator: flagged_payments
+      denominator: settled_payments
+
+  - name: settled_value_usd
+    label: Settled value
+    type: simple
+    type_params:
+      measure: settled_value_usd
+
+  - name: flagged_payment_value_usd
+    label: Flagged payment value
+    type: simple
+    type_params:
+      measure: flagged_payment_value_usd
+
+  - name: chargeback_value_rate
+    label: Chargeback rate by value
+    description: Flagged over settled value. Recent months can still gain chargebacks, so check `mart_chargeback_rate.is_mature`.
+    type: ratio
+    type_params:
+      numerator: flagged_payment_value_usd
+      denominator: settled_value_usd

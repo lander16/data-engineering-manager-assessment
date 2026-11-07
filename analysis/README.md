@@ -39,6 +39,7 @@ The script:
 | `sql/14_chargebacks.sql` | Chargeback meaning, maturity, and denominators |
 | `sql/15_review_checks.sql` | Figures under the adopted status rule, plus later checks |
 | `sql/16_recurring_definitions.sql` | Calendar months against day windows for recurring customers |
+| `check_semantic.py` | Compares the semantic-layer metrics to the marts. Needs `requirements-semantic.txt` and a finished `dbt build` |
 | `results/` | Output of each script, plus source checksums |
 | `verification/` | Independent re-derivation of 137 figures in Python, with no DuckDB. All match. It doesn't cover the adopted status rule. Run with `python3 -I analysis/verification/independent_check.py` |
 

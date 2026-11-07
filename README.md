@@ -24,7 +24,7 @@ dbt run-operation load_raw
 dbt build
 ```
 
-`dbt build` passes 81 items with 0 errors and 0 warnings. Load before you build, because unit tests need the `raw` tables to exist. Close any DuckDB session on `felix.duckdb` first, since it allows one writer.
+`dbt build` passes 82 items with 0 errors and 0 warnings. Load before you build, because unit tests need the `raw` tables to exist. Close any DuckDB session on `felix.duckdb` first, since it allows one writer.
 
 New data goes in `data/` as `<table>_YYYY-MM-DD.csv`, holding each record's full current state. Run the same two commands. `load_raw` loads only files it hasn't seen, and staging reads only rows loaded since its last run. After changing a staging model, run `dbt build --full-refresh`.
 
@@ -96,9 +96,11 @@ A remittance is one payment. A payout attempt is one receipt plus its disburseme
 | R3 First layer | `models/staging/` |
 | R4 Intermediate layer | `models/intermediate/` |
 | R5 Modeling | `models/marts/`, `docs/03-project-design.md` |
-| R6 to R11 Metrics | The marts in the results table |
+| R6 to R11 Metrics | The marts in the results table, and `models/marts/_semantic.yml` |
 | R12 Tests | `models/*/_*.yml`, `tests/` |
 | R13 Repository | This repository |
+
+The marts answer each question. A small semantic layer in `models/marts/_semantic.yml` also defines 13 metrics on the same grains, so a tool or an agent can query them by any dimension. It's optional, and `dbt build` doesn't need it. All 8 checks against the marts match, and `docs/03-project-design.md` section 3.12 has the commands.
 
 ## Where the tests are
 
@@ -147,7 +149,7 @@ The assessment leaves these open. `docs/02-assumptions-and-rules.md` gives the r
 
 The models use standard SQL and dbt's cross-database macros. On BigQuery, replace `load_raw` with `bq load` or external tables, then change type names and the 3 UTC date expressions.
 
-The load and staging are already incremental, using load time as the watermark. `updated_at` doesn't appear to move with the chargeback flag, so a filter on it would skip a late chargeback. An incremental run matches a full refresh across all 14 models. At larger scale, facts would recompute only payments touched by a batch. `docs/03-project-design.md` section 3.7 has the detail.
+The load and staging are already incremental, using load time as the watermark. `updated_at` doesn't appear to move with the chargeback flag, so a filter on it would skip a late chargeback. An incremental run matches a full refresh across all 14 data models. At larger scale, facts would recompute only payments touched by a batch. `docs/03-project-design.md` section 3.7 has the detail.
 
 ## If I owned this
 
@@ -159,7 +161,7 @@ First, I'd make these numbers trustworthy for the people who use them:
 4. Add the dispute date and outcome to the data, so the chargeback rate stops being a proxy.
 5. Find out what the growing no-receipt charges are, and decide how to report them.
 
-Then I'd make it run itself: move it to BigQuery with freshness checks, route `mart_known_issues` alerts to their owners, and put the core metrics in a semantic layer, so every team reads the same numbers.
+Then I'd make it run itself: move it to BigQuery with freshness checks, route `mart_known_issues` alerts to their owners, and make the semantic layer the one place every team and dashboard reads metrics from.
 
 ## More detail
 

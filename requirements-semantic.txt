@@ -1,0 +1,2 @@
+-r requirements.txt
+dbt-metricflow==0.15.0

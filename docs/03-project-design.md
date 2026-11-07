@@ -143,6 +143,7 @@ All models are tables in DuckDB's `main` schema, and `raw` is the only other sch
 ├── dbt_project.yml         # includes the vars for adopted assumptions
 ├── profiles.yml            # local DuckDB, no secrets
 ├── requirements.txt        # dbt-core 1.12.6 and dbt-duckdb 1.11.1
+├── requirements-semantic.txt  # optional: adds MetricFlow
 ├── .gitignore
 ├── data/                   # CSVs, never committed
 ├── macros/
@@ -157,6 +158,8 @@ All models are tables in DuckDB's `main` schema, and `raw` is the only other sch
 │   │   └── int_payout_attempts, int_user_beneficiaries
 │   └── marts/
 │       ├── _marts.yml      # metric definitions live here
+│       ├── _semantic.yml   # semantic models and metrics
+│       ├── metricflow_time_spine
 │       ├── fct_remittances, dim_users
 │       └── mart_monthly_volume, mart_user_segments, mart_recurring_cohorts,
 │           mart_provider_failures, mart_shared_beneficiaries,
@@ -191,6 +194,7 @@ Types follow doc 02 section 6. Models never round.
 | `mart_shared_beneficiaries` | Shared `beneficiary_key` | 0 | The literal R10 output |
 | `mart_chargeback_rate` | UTC month | 9 | Count and value rates on settled payments, `is_mature` |
 | `mart_known_issues` | Issue | 21 | Issue definitions, rows, USD, and baselines |
+| `metricflow_time_spine` | Day | 365 | Calendar for MetricFlow. It holds no business logic |
 
 Each staging model keeps one row per ID: the latest file wins, then the latest `updated_at`, with `created_at` as the fallback. File order comes first because setting the chargeback flag doesn't appear to move `updated_at`. Receipts have no `updated_at`, so they use `created_at`.
 
@@ -408,7 +412,7 @@ vars:
 | `dbt build` crashes halfway | Models hold no incremental state, so rerunning repairs it. |
 | New data changes pinned numbers | `extract_golden_numbers` and `known_issues_within_baseline` warn. That's their job, and the baselines get reviewed. |
 
-Staging's watermark is `_loaded_at`, not `updated_at`. An `updated_at` filter kept 0 of 2 rows in a test batch, because setting the chargeback flag doesn't appear to move it. A file's name must still sort in arrival order, because a full refresh orders by file. After changing a staging model, run `dbt build --full-refresh`. An incremental run matched a full refresh on all 14 models, and it saved about 1.5 seconds, so at this size the point is the design and not the speed.
+Staging's watermark is `_loaded_at`, not `updated_at`. An `updated_at` filter kept 0 of 2 rows in a test batch, because setting the chargeback flag doesn't appear to move it. A file's name must still sort in arrival order, because a full refresh orders by file. After changing a staging model, run `dbt build --full-refresh`. An incremental run matched a full refresh on all 14 data models, and it saved about 1.5 seconds, so at this size the point is the design and not the speed.
 
 **At a much larger scale,** the same shape holds, and each layer changes in this order:
 
@@ -469,7 +473,7 @@ Section 3.7's scale table goes in the README as a short note.
 | Decision | Alternatives considered | Why |
 |---|---|---|
 | DuckDB and dbt | BigQuery, to match Félix's stack | The assessment allows any database, and a reviewer needs no cloud account. The SQL stays close to standard, and section 3.9 lists what would change |
-| dbt Core 1.12.6, pinned | dbt 2 | `pip install` gives every reviewer the same version. dbt 2 adds speed and built-in lint and format commands, but it isn't on pip, and 14 models don't need it. The load ran on both |
+| dbt Core 1.12.6, pinned | dbt 2 | `pip install` gives every reviewer the same version. dbt 2 adds speed and built-in lint and format commands, but it isn't on pip, and 15 models don't need it. The load ran on both |
 | `load_raw` as a dbt macro | Seeds, a Python loader, or external tables | Seeds aren't allowed. A macro keeps one tool and one list of tables |
 | All text in `raw` | Typed columns at load | A bad value fails in staging with a clear model name, and raw keeps the source as received |
 | Incremental load and staging, full rebuild after | Incremental models everywhere, or none | Staging is where new data arrives. Top users, recurring, and maturity need full history, so later layers rebuild. Section 3.7 gives the scale path |
@@ -481,6 +485,7 @@ Section 3.7's scale table goes in the README as a short note.
 | No dbt packages | `dbt_utils` | Built-in tests cover the need, so there's one less dependency |
 | No model contracts | Enforced contracts | They'd need every aggregate's exact decimal type. They're a good next step for production |
 | One schema with prefixes | A schema per layer, with a macro | Prefixes already show the layer |
+| A small semantic layer | None, or a metric for every column | The marts answer the assessment. 13 metrics make the answers queryable by any dimension, and more would add YAML with no new question answered |
 
 ### 3.11 Bus matrix
 
@@ -493,6 +498,36 @@ This shows the dimensional shape. Each row is a grain, and each column is a way 
 | User | `dim_users` | First month | Yes | | | | |
 
 Only the user has attributes worth a table, so `dim_users` is the one dimension. Provider, country, and payment type would each be a single masked or coded column, so they stay on the facts. The attempt grain sits in the intermediate layer because its logic is shared, and marts read it directly as a public grain.
+
+### 3.12 Semantic layer
+
+`models/marts/_semantic.yml` puts MetricFlow on the three grains in the bus matrix. It adds no business rule, because each measure reads a flag or column the models already own.
+
+| Semantic model | Reads | Answer metrics | Slices |
+|---|---|---|---|
+| `remittances` | `fct_remittances` | `transacted_usd`, `chargeback_count_rate`, `chargeback_value_rate` | Month, payment type, status, payout outcome, any user slice |
+| `payout_attempts` | `int_payout_attempts` | `provider_failed_rate` | Day, provider, status, country, payout type |
+| `users` | `dim_users` | `top_volume_users`, `recurring_users` | First delivered month, volume class, recurring, beneficiary segment |
+
+The other 7 metrics are `delivered_remittances` and the numerators and denominators of the ratios. Questions that need a window or a ranking stay in the marts: monthly top users, cohort repeat rates, provider classes, and known issues. Clusters have no metric, because the output is empty.
+
+`is_mature` also stays in `mart_chargeback_rate`, so the rate metrics describe every month and their descriptions say to check it. For the mature months, filter to April or earlier. That gives 215 of 271,182, or 0.0793%, the same as the mart.
+
+MetricFlow is optional, so a reviewer who only runs `dbt build` installs nothing extra. dbt still parses the YAML and writes `target/semantic_manifest.json`, so a broken definition fails the build. The time spine is the one model it adds. It needs its range extended when data passes 2026.
+
+```bash
+pip install -r requirements-semantic.txt
+```
+
+```bash
+mf validate-configs
+```
+
+```bash
+python analysis/check_semantic.py
+```
+
+The last command queries each answer metric through MetricFlow and compares it to its mart. It runs 8 checks by month, provider, user class, and in total, and all match. Changing a metric's filter made it fail on the delivered, chargeback, recurring, and provider checks. Removing the eligibility filter from `flagged_payments` changed nothing, because no flagged payment sits outside the eligible set.
 
 ## 4. How each metric is traced
 
@@ -559,6 +594,7 @@ No-receipt payments stay in the chargeback denominator, because a dispute attach
 - We accept no `execute` guard in `load_raw`, because only `run-operation` calls it.
 - We accept full rebuilds after staging, because they keep results simple to trust at this size. Section 3.7 gives the path for a larger one.
 - We accept no unit test on the incremental filter, because it would need the table to exist before a first build. A batch run compared with a full refresh covers it.
+- We accept each metric's filter appearing in both a mart and `_semantic.yml`, in exchange for a queryable layer that needs no mart rewrite. `analysis/check_semantic.py` catches drift, but it isn't part of `dbt build`, because MetricFlow is optional.
 
 ## 8. Risks
 
