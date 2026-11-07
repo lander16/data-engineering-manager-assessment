@@ -162,7 +162,7 @@ All models are tables in DuckDB's `main` schema, and `raw` is the only other sch
 │           mart_provider_failures, mart_shared_beneficiaries,
 │           mart_chargeback_rate, mart_known_issues
 ├── tests/
-│   ├── no_conflicting_versions.sql
+│   ├── generic/no_conflicting_versions.sql
 │   ├── marts_reconcile_to_facts.sql
 │   ├── top_users_cross_half.sql
 │   ├── known_issues_within_baseline.sql
@@ -201,7 +201,7 @@ qualify row_number() over (
 ) = 1
 ```
 
-Identical rows collapse here. Two different rows tied on ID, file, and timestamp have no correct winner, and input order would otherwise decide. `no_conflicting_versions` reads `raw`, fails on such a tie, and stops the build before staging runs.
+Identical rows collapse here. Two different rows tied on ID, file, and timestamp have no correct winner, and input order would otherwise decide. `no_conflicting_versions` is a generic test on each source table, so it fails on such a tie and dbt skips that table's staging model. It has to be a test on one source: a single test across all 3 sources failed but didn't stop staging.
 
 **`stg_payments`** drops `error_code`, `reason`, `total_intents`, and `location_of_request_state_code`, which stay in raw. The month is explicit, so it doesn't depend on the session time zone:
 

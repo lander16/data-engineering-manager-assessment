@@ -2,5 +2,9 @@ name: remittances
 version: "1.0.0"
 profile: remittances
 
+models:
+  remittances:
+    +materialized: table
+
 vars:
   data_dir: data

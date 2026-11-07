@@ -1,0 +1,69 @@
+version: 2
+
+models:
+  - name: stg_payments
+    description: One row per payment, keeping the latest version of each ID.
+    columns:
+      - name: payment_id
+        data_tests: [unique, not_null]
+
+  - name: stg_receipts
+    description: One row per receipt. A receipt is one payout attempt.
+    columns:
+      - name: receipt_id
+        data_tests: [unique, not_null]
+      - name: payment_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_payments')
+                field: payment_id
+      - name: disbursement_id
+        data_tests: [unique]
+
+  - name: stg_disbursements
+    description: One row per disbursement, with lowercase statuses.
+    columns:
+      - name: disbursement_id
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_receipts')
+                field: disbursement_id
+
+unit_tests:
+  - name: month_is_utc_near_midnight
+    model: stg_payments
+    given:
+      - input: source('raw', 'payments')
+        rows:
+          - {id: p1, created_at: '2026-01-31 23:59:59+00', _source_file: payments.csv}
+          - {id: p2, created_at: '2026-02-01 00:00:00+00', _source_file: payments.csv}
+    expect:
+      rows:
+        - {payment_id: p1, payment_month: 2026-01-01}
+        - {payment_id: p2, payment_month: 2026-02-01}
+
+  - name: sub_cent_amount_is_not_rounded
+    model: stg_payments
+    given:
+      - input: source('raw', 'payments')
+        rows:
+          - {id: p1, amount: '102.989997864', created_at: '2026-01-01 00:00:00+00', _source_file: payments.csv}
+    expect:
+      rows:
+        - {payment_id: p1, amount_usd: 102.989997864}
+
+  - name: later_file_wins_with_same_updated_at
+    model: stg_payments
+    given:
+      - input: source('raw', 'payments')
+        rows:
+          - {id: p1, has_dispute_chargeback: 'False', created_at: '2026-01-01 00:00:00+00', updated_at: '2026-01-02 00:00:00+00', _source_file: payments.csv}
+          - {id: p1, has_dispute_chargeback: 'True', created_at: '2026-01-01 00:00:00+00', updated_at: '2026-01-02 00:00:00+00', _source_file: payments_2026-09-30.csv}
+    expect:
+      rows:
+        - {payment_id: p1, has_chargeback: true}
