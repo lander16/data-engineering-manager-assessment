@@ -1,0 +1,36 @@
+version: 2
+
+models:
+  - name: fct_remittances
+    description: One row per payment, including payments with no receipt. Owns payout outcome, money measures, and eligibility flags. `transacted_usd` is null unless the payment is a delivered remittance.
+    columns:
+      - name: payment_id
+        data_tests: [unique, not_null]
+      - name: payout_outcome
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [no_receipt, multiple_delivered, delivered, in_flight, missing_payout, not_delivered]
+
+unit_tests:
+  - name: money_counts_once_and_payments_survive
+    model: fct_remittances
+    overrides:
+      vars:
+        transacted_measure: customer_paid_usd
+    given:
+      - input: ref('stg_payments')
+        rows:
+          - {payment_id: two_delivered, payment_status: SUCCESSFUL, amount_usd: 103.00, created_at: '2026-01-01 00:00:00+00'}
+          - {payment_id: no_receipt, payment_status: SUCCESSFUL, amount_usd: 1.00, created_at: '2026-01-02 00:00:00+00'}
+          - {payment_id: failed_paid_out, payment_status: FAILED, amount_usd: 50.00, created_at: '2026-01-03 00:00:00+00'}
+      - input: ref('int_payout_attempts')
+        rows:
+          - {payment_id: two_delivered, attempt_status: delivered, is_primary_attempt: true, amount_charged_usd: 100.00, promotion_usd: 0.00, fee_usd: 3.00}
+          - {payment_id: two_delivered, attempt_status: delivered, is_primary_attempt: false, amount_charged_usd: 100.00, promotion_usd: 0.00, fee_usd: 3.00}
+          - {payment_id: failed_paid_out, attempt_status: delivered, is_primary_attempt: true, amount_charged_usd: 47.00, promotion_usd: 0.00, fee_usd: 3.00}
+    expect:
+      rows:
+        - {payment_id: two_delivered, payout_outcome: multiple_delivered, is_delivered_remittance: true, transacted_usd: 103.00, value_sent_usd: 100.00, fee_usd: 3.00, extra_delivered_value_usd: 100.00}
+        - {payment_id: no_receipt, payout_outcome: no_receipt, is_delivered_remittance: false, transacted_usd: null, value_sent_usd: null, fee_usd: null, extra_delivered_value_usd: null}
+        - {payment_id: failed_paid_out, payout_outcome: delivered, is_delivered_remittance: false, transacted_usd: null, value_sent_usd: 47.00, fee_usd: 3.00, extra_delivered_value_usd: null}

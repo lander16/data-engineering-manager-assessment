@@ -8,3 +8,6 @@ models:
 
 vars:
   data_dir: data
+
+  # Adopted assumptions. See docs/02-assumptions-and-rules.md.
+  transacted_measure: customer_paid_usd
