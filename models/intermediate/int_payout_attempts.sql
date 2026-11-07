@@ -13,6 +13,8 @@ with joined as (
         r.exchange_rate,
         r.destination_amount,
         r.created_at as attempt_at,
+        d.country_code as disbursement_country_code,
+        d.currency as disbursement_currency,
         d.status,
         d.raw_status,
         d.provider_status,
@@ -61,6 +63,6 @@ delivery as (
 
 select
     * exclude (first_delivered_number, last_delivered_number),
-    attempt_number = first_delivered_number as is_primary_attempt,
-    attempt_status in ('failed', 'cancelled') and last_delivered_number > attempt_number as is_followed_by_delivery
+    coalesce(attempt_number = first_delivered_number, false) as is_primary_attempt,
+    coalesce(attempt_status in ('failed', 'cancelled') and last_delivered_number > attempt_number, false) as is_followed_by_delivery
 from delivery

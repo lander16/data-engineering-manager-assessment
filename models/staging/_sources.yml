@@ -9,14 +9,14 @@ sources:
         data_tests:
           - no_conflicting_versions:
               arguments:
-                version_at: coalesce(updated_at, created_at)
+                version_at: cast(coalesce(updated_at, created_at) as timestamptz)
       - name: receipts
         data_tests:
           - no_conflicting_versions:
               arguments:
-                version_at: created_at
+                version_at: cast(created_at as timestamptz)
       - name: disbursements
         data_tests:
           - no_conflicting_versions:
               arguments:
-                version_at: coalesce(updated_at, created_at)
+                version_at: cast(coalesce(updated_at, created_at) as timestamptz)

@@ -7,7 +7,7 @@ with typed as (
         type as payment_type,
         currency,
         cast(amount as decimal(18, 9)) as amount_usd,
-        has_dispute_chargeback = 'True' as has_chargeback,
+        cast(has_dispute_chargeback as boolean) as has_chargeback,
         cast(created_at as timestamptz) as created_at,
         cast(updated_at as timestamptz) as updated_at,
         _source_file,
