@@ -96,6 +96,18 @@ models:
       - name: beneficiary_key
         data_tests: [unique, not_null]
 
+  - name: mart_known_issues
+    description: |
+      One row per known data issue, with rows, USD, and the baseline from this extract.
+      Decision: see what needs a source fix, and whether an issue is growing.
+      Definition: each row is one `union all` block in the model. `no_receipt_scheduled_amount` means amounts of the form 6.25 x n - 0.25.
+      Excludes: nothing is corrected here. Rows stay where they are, and this table only counts them.
+      Limitation: `usd_affected` uses the amount closest to each issue, so issues overlap and shouldn't be summed.
+    meta: {requirement: R12}
+    columns:
+      - name: issue
+        data_tests: [unique, not_null]
+
 unit_tests:
   - name: money_counts_once_and_payments_survive
     model: fct_remittances
