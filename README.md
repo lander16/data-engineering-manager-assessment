@@ -137,6 +137,7 @@ The assessment leaves these open. `docs/02-assumptions-and-rules.md` gives the r
 - 64 payments have a `CANCELLED` attempt with raw `PAID` or `COMPLETED`. 37 have no delivered attempt, 23 were delivered on a later attempt, and 4 were refunded.
 - 1,961 successful payments with no receipt begin in June and are growing. Many repeat fixed amounts.
 - Provider 12's cancellations stop on August 10 as its failures rise, while non-delivery holds steady.
+- Failed rates vary by destination and payout type, from 0.18% to 9.52%. Providers 5 and 7 are close overall (2.83% and 2.98%), but peers on the same routes fail at 4.21% and 1.19%. Routing isn't random, so this is a description, not a cause.
 
 ## Limitations
 

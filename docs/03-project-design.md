@@ -527,7 +527,13 @@ mf validate-configs
 python analysis/check_semantic.py
 ```
 
-The last command queries each answer metric through MetricFlow and compares it to its mart. It runs 8 checks by month, provider, user class, and in total, and all match. Changing a metric's filter made it fail on the delivered, chargeback, recurring, and provider checks. Removing the eligibility filter from `flagged_payments` changed nothing, because no flagged payment sits outside the eligible set.
+The last command queries each answer metric through MetricFlow and compares it to its mart. The layer also answers questions no mart was built for. This one gives the provider breakdown behind `analysis/sql/17_provider_mix.sql`, with no new model:
+
+```bash
+mf query --metrics provider_failed_rate,decided_attempts --group-by attempt__provider,attempt__country_code,attempt__payout_type
+```
+
+The check runs 8 checks by month, provider, user class, and in total, and all match. Changing a metric's filter made it fail on the delivered, chargeback, recurring, and provider checks. Removing the eligibility filter from `flagged_payments` changed nothing, because no flagged payment sits outside the eligible set.
 
 ## 4. How each metric is traced
 

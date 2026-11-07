@@ -430,8 +430,8 @@ Severity should be intentional. Structural problems such as duplicate primary ke
 
 ### Possible extensions
 
-- Corridor or payout-type breakdown of provider failures.
-- Cohort retention chart.
+- Corridor or payout-type breakdown of provider failures. Done, with no new model. `analysis/sql/17_provider_mix.sql` holds the comparison, and the semantic layer can group `provider_failed_rate` by destination and payout type.
+- Cohort retention chart. Left out. Retention isn't one of the 6 metrics, and `mart_recurring_cohorts` already gives each cohort's 90-day repeat rate. The extract starts in January, so early cohorts mix new and existing customers, and each cohort's latest month is partial.
 
 ### Avoid
 
