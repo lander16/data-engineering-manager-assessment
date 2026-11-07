@@ -337,6 +337,7 @@ Script 15 also covers these (`R11` to `R15`):
 - No disbursement is on two receipts, and every disbursement has a receipt.
 - Returning senders rise from 17.1% of active senders in February to 56.0% in September, partly because activity before January isn't visible.
 - Script 17 compares each provider with other providers on the same destination and payout type. Rates vary by route, from 0.18% to 9.52%, so a provider's overall rate partly reflects where it operates. Providers 5 and 7 have close overall failed rates (2.83% and 2.98%), but their peers fail at 4.21% and 1.19% on the same routes. Provider 7 stays above its peers when cancellations count (1.22 times), and Provider 5 stays below (0.23 times). Routing isn't random, so this describes the data and doesn't prove cause.
+- By attempt month, the failed rate rises from 1.04% in January to 1.91% in August, while the unsuccessful rate falls from 3.19% to 2.74%. `docs/05-business-findings.md` gives the query and the business reading.
 - Script 16 compares recurring definitions. Calendar months favor late-month starters (17.8% against 26.8% within 60 days), while a 60-day repeat is flat at about 28%. Both predict later activity about equally, so the adopted rule is a gap of over 1 day and at most 90 days: 133,760 users. 1,289 users have 2 or more sends with every gap within 1 day, so they don't qualify.
 
 ## Implications

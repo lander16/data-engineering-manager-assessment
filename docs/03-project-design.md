@@ -170,7 +170,7 @@ All models are tables in DuckDB's `main` schema, and `raw` is the only other sch
 │   ├── top_users_cross_half.sql
 │   ├── known_issues_within_baseline.sql
 │   └── extract_golden_numbers.sql
-├── docs/                   # assessment analysis, assumptions, design, quality policy
+├── docs/                   # analysis, assumptions, design, quality policy, business findings
 └── analysis/               # profiling SQL, results, findings, semantic check
 ```
 
@@ -466,6 +466,7 @@ Unit tests cover logic the real data can't protect:
 | Requirement and assumption links | `meta` on each mart, such as `{requirement: R9, assumptions: [A8, A9]}` |
 | Semantic metrics | `_semantic.yml`, which reads the columns the models own |
 | Public interface and data products | `access` in `dbt_project.yml`, and section 3.13 |
+| Business reading of the results | `docs/05-business-findings.md` |
 | Evidence | `analysis/` and `docs/` |
 
 The README stands alone and stays short. It covers how to run it, the lineage, a map from R1 to R13 to files, a results section with each metric's actual output and the command that reproduces it, adopted assumptions, data observations for follow-up in neutral terms, what would change on BigQuery, limitations, and an ownership plan. The numbered docs are supporting evidence, so a reviewer never needs them to understand the answer.

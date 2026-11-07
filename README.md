@@ -120,7 +120,7 @@ The assessment leaves these open. `docs/02-assumptions-and-rules.md` gives the r
 
 ## Data observations
 
-`mart_known_issues` lists 21 issues with rows, USD, and baselines. Nothing is corrected, and these are worth a review with the source owners.
+`mart_known_issues` lists 21 issues with rows, USD, and baselines. Nothing is corrected, and these are worth a review with the source owners. `docs/05-business-findings.md` charts the main business findings and the questions they leave open.
 
 - 182 payments ($50.9K) are `SUCCESSFUL` with every payout failed or cancelled and no refund.
 - 64 payments have a `CANCELLED` attempt with raw `PAID` or `COMPLETED`. 37 have no delivered attempt, 23 were delivered on a later attempt, and 4 were refunded.
@@ -157,6 +157,6 @@ After that, I'd open it up as self-service: teams request access to data product
 
 ## More detail
 
-`docs/` holds the assessment analysis (01), rules and evidence (02), design (03), and data quality policy (04). `analysis/` holds the profiling SQL, results, and findings.
+`docs/` holds the assessment analysis (01), rules and evidence (02), design (03), data quality policy (04), and business findings (05). `analysis/` holds the profiling SQL, results, and findings.
 
 AI coding assistants helped with profiling, drafting documents, writing the SQL, and reviewing it. The definitions and decisions are mine, and I checked the numbers against the data.
