@@ -2,6 +2,8 @@ version: 2
 
 models:
   - name: int_payout_attempts
+    config:
+      access: public
     description: One row per payout attempt, which is one receipt plus its disbursement. Owns the attempt status rule.
     data_tests:
       - unique:

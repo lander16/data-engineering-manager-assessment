@@ -485,6 +485,7 @@ Section 3.7's scale table goes in the README as a short note.
 | No dbt packages | `dbt_utils` | Built-in tests cover the need, so there's one less dependency |
 | No model contracts | Enforced contracts | They'd need every aggregate's exact decimal type. They're a good next step for production |
 | One schema with prefixes | A schema per layer, with a macro | Prefixes already show the layer |
+| `access` set by layer, in one group | No boundary, or several dbt projects | Marks the public interface in a few lines. Section 3.13 explains what it does and doesn't enforce |
 | A small semantic layer | None, or a metric for every column | The marts answer the assessment. 13 metrics make the answers queryable by any dimension, and more would add YAML with no new question answered |
 
 ### 3.11 Bus matrix
@@ -534,6 +535,32 @@ mf query --metrics provider_failed_rate,decided_attempts --group-by attempt__pro
 ```
 
 The check runs 8 checks by month, provider, user class, and in total, and all match. Changing a metric's filter made it fail on the delivered, chargeback, recurring, and provider checks. Removing the eligibility filter from `flagged_payments` changed nothing, because no flagged payment sits outside the eligible set.
+
+### 3.13 Data products
+
+Self-service works only if definitions, owners, and quality travel with the data. A reader of the raw disbursements would put Provider 3 at 0.18% failed, not 1.44%. A join of payments to receipts would overstate volume by $6.54M. So teams get the products below, not the raw tables.
+
+This is one domain, so it's one data product family in one dbt project. Several projects would add coordination with nothing to separate. Owners, tiers, and approvals are proposals, because the right names depend on the team.
+
+| Product | Models | Grain | Suggested owner | Tier | Quality signal |
+|---|---|---|---|---|---|
+| Volume and customers | `mart_monthly_volume`, `mart_user_segments`, `mart_recurring_cohorts` | Month, segment, cohort | Finance | Aggregate | `marts_reconcile_to_facts`, `extract_golden_numbers` |
+| Provider performance | `mart_provider_failures` | Provider | Payment operations | Aggregate | `is_label_sensitive`, unit tests on classes |
+| Chargebacks | `mart_chargeback_rate` | Month | Risk | Aggregate | `is_mature` |
+| Data health | `mart_known_issues` | Issue | Data engineering | Aggregate | `known_issues_within_baseline` |
+| Core records | `fct_remittances`, `dim_users`, `int_payout_attempts`, `mart_shared_beneficiaries` | Payment, user, attempt, beneficiary | Data engineering | Record | Key, relationship, and reconciliation tests |
+
+| Tier | Holds | How a team gets it |
+|---|---|---|
+| Aggregate | No user or beneficiary rows | Request it, and the product owner approves it. Access stays until revoked |
+| Record | One row per user, payment, attempt, or beneficiary | State a purpose. The owner and compliance approve it, and it expires |
+| Internal | `raw`, staging, `int_user_beneficiaries` | Not offered. Data engineering only |
+
+The tiers cover who can read data. dbt's `access` setting covers something else: which models other teams can build on. Marts and `int_payout_attempts` are `public`, and staging and the rest are `private`. A model in another group failed at parse when it read `stg_payments` or `int_user_beneficiaries`, and it passed when it read a mart. With one group here, that boundary only starts to matter when a second team builds on this project.
+
+The semantic layer needs care. Its metrics return aggregates, but a query grouped by the `user` entity returns one row per user. So access to it follows the Record tier until that grouping is blocked.
+
+On BigQuery, the tiers map to a dataset per tier, authorized views, and column-level policy tags on `user_id` and `beneficiary_key`. None of this is built here, and no access-request tool belongs in this project. Enforced contracts on the public models are the next step, so a team can rely on the columns.
 
 ## 4. How each metric is traced
 
@@ -600,6 +627,7 @@ No-receipt payments stay in the chargeback denominator, because a dispute attach
 - We accept no `execute` guard in `load_raw`, because only `run-operation` calls it.
 - We accept full rebuilds after staging, because they keep results simple to trust at this size. Section 3.7 gives the path for a larger one.
 - We accept no unit test on the incremental filter, because it would need the table to exist before a first build. A batch run compared with a full refresh covers it.
+- We accept `access` having no effect inside this project, because every model shares one group. It records the interface now, and a second group is what makes it bite.
 - We accept each metric's filter appearing in both a mart and `_semantic.yml`, in exchange for a queryable layer that needs no mart rewrite. `analysis/check_semantic.py` catches drift, but it isn't part of `dbt build`, because MetricFlow is optional.
 
 ## 8. Risks

@@ -164,6 +164,8 @@ First, I'd make these numbers trustworthy for the people who use them:
 
 Then I'd make it run itself: move it to BigQuery with freshness checks, route `mart_known_issues` alerts to their owners, and make the semantic layer the one place every team and dashboard reads metrics from.
 
+After that, I'd open it up as self-service: teams request access to data products by tier, and definitions, owners, and quality come with the data. Raw tables stay closed, because that's where the wrong numbers come from. `docs/03-project-design.md` section 3.13 proposes the products and tiers.
+
 ## More detail
 
 - `docs/01-assessment-analysis.md` explains the flow and the ambiguous definitions.

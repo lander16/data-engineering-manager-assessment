@@ -1,5 +1,10 @@
 version: 2
 
+groups:
+  - name: remittance_analytics
+    owner:
+      name: Data Engineering
+
 models:
   - name: fct_remittances
     description: One row per payment, including payments with no receipt. Owns payout outcome, money measures, and eligibility flags. `transacted_usd` is null unless the payment is a delivered remittance.

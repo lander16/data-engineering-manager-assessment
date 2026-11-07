@@ -5,6 +5,17 @@ profile: remittances
 models:
   remittances:
     +materialized: table
+    +group: remittance_analytics
+    staging:
+      +access: private
+    intermediate:
+      +access: private
+    marts:
+      +access: public
+
+data_tests:
+  remittances:
+    +group: remittance_analytics
 
 vars:
   data_dir: data

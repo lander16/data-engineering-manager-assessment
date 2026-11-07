@@ -2,6 +2,8 @@ version: 2
 
 models:
   - name: metricflow_time_spine
+    config:
+      access: private
     description: One row per day. MetricFlow needs it to validate time dimensions. Extend the range when data passes 2026.
     time_spine:
       standard_granularity_column: date_day
