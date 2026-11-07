@@ -12,3 +12,4 @@ vars:
   # Adopted assumptions. See docs/02-assumptions-and-rules.md.
   transacted_measure: customer_paid_usd
   recurring_window_days: 90
+  chargeback_maturity_days: 120
