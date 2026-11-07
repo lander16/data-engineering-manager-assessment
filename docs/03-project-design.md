@@ -354,7 +354,7 @@ vars:
 
 ### 3.7 Raw load and new data
 
-**The load is incremental, and the transformations rebuild.** `raw` is append-only, and `load_raw` loads only the files it hasn't seen. Staging then keeps the latest version of each ID, and everything downstream rebuilds in seconds. The macro reads the table list from `_sources.yml`, so there's no second list, and it has no column lists, so a renamed column fails in staging.
+**The load and staging are incremental, and everything after them rebuilds.** `raw` is append-only, and `load_raw` loads only the files it hasn't seen. Staging reads only rows loaded since its last run, and replaces each changed ID. Everything downstream rebuilds in seconds, because top users, recurring status, and maturity need full history. The macro reads the table list from `_sources.yml`, so there's no second list, and it has no column lists, so a renamed column fails in staging.
 
 ```jinja
 {% macro load_raw() %}
@@ -408,17 +408,18 @@ vars:
 | `dbt build` crashes halfway | Models hold no incremental state, so rerunning repairs it. |
 | New data changes pinned numbers | `extract_golden_numbers` and `known_issues_within_baseline` warn. That's their job, and the baselines get reviewed. |
 
+Staging's watermark is `_loaded_at`, not `updated_at`. An `updated_at` filter kept 0 of 2 rows in a test batch, because setting the chargeback flag doesn't appear to move it. A file's name must still sort in arrival order, because a full refresh orders by file. After changing a staging model, run `dbt build --full-refresh`. An incremental run matched a full refresh on all 14 models, and it saved about 1.5 seconds, so at this size the point is the design and not the speed.
+
 **At a much larger scale,** the same shape holds, and each layer changes in this order:
 
 | Layer | Change at scale | Why |
 |---|---|---|
-| Load | Already incremental. Partition `raw` by load date | Cost follows new data, not history |
-| Staging | Incremental merge on ID, with `_loaded_at` as the watermark | `updated_at` is unreliable: it's null on 816 disbursements, earlier than `created_at` on 18, and doesn't appear to move with the chargeback flag |
+| Load and staging | Already incremental. Partition `raw` by load date | Cost follows new data, not history |
 | `int_payout_attempts`, `fct_remittances` | Incremental, recomputing every payment touched by the batch | A late update can change an old payment, so filtering on recent dates would be wrong |
 | `dim_users` | Recompute only users touched by the batch, then re-rank | Ranks and recurring status depend on full user history |
 | Marts | Keep rebuilding, or rebuild only affected months | They're small aggregates of the layer above |
 
-None of this is built now. It would add state to test without changing a result at this size.
+The layers after staging aren't built this way, because it would add state to test without changing a result at this size.
 
 ### 3.8 Tests
 
@@ -442,12 +443,12 @@ Unit tests cover logic the real data can't protect:
 | `stg_payments` | A timestamp near midnight lands in the right month; a sub-cent amount isn't rounded |
 | `stg_payments` | A later file wins when `updated_at` is unchanged |
 | `int_payout_attempts` | `CANCELLED` with raw `PAID` stays cancelled and flagged; `Failed` with raw `cancelled` stays failed and flagged; a receipt with an orphan disbursement ID becomes `missing`; a new status becomes `unknown` |
-| `int_user_beneficiaries` | A beneficiary seen only on a retry keeps its pair, with `is_on_first_attempt` false |
+| `int_user_beneficiaries` | A beneficiary seen only on a retry keeps its pair, with `is_on_first_attempt` false; several receipts for one user make one pair |
 | `fct_remittances` | Two delivered attempts count money once with a fixed primary; a no-receipt payment survives; a `FAILED` payment with a delivered attempt isn't delivered |
 | `dim_users` | Ties break by `user_id`; the crossing user is included; a user reaching exactly 50% is the last one included; sends 1 day apart aren't recurring, 90 days apart are, and 91 days apart aren't; a sender with daily gaps never qualifies; a retry-only beneficiary doesn't count toward the segment |
 | `mart_monthly_volume`, `mart_chargeback_rate` | A month exactly at the maturity boundary; `is_partial_month` |
-| `mart_provider_failures` | Exactly 1%, exactly 3%, and 999 attempts land in the right class; missing attempts add no row; differing classes set `is_label_sensitive` |
-| `mart_shared_beneficiaries` | Two users on one key return one row, including when one reached it only on a retry; one user with several receipts on a key returns none |
+| `mart_provider_failures` | A rate exactly on each class line and a count just under the minimum land in the right class, using small thresholds so fixtures stay short; missing attempts add no row; differing classes set `is_label_sensitive` |
+| `mart_shared_beneficiaries` | Two users on one key return one row, including when one reached it only on a retry; a key with one user returns none |
 
 ### 3.9 Documentation
 
@@ -459,7 +460,7 @@ Unit tests cover logic the real data can't protect:
 
 The README stands alone and stays short. It covers how to run it, the lineage, a map from R1 to R13 to files, a results section with each metric's actual output and the command that reproduces it, adopted assumptions, data observations for follow-up in neutral terms, what would change on BigQuery, and limitations. The numbered docs are supporting evidence, so a reviewer never needs them to understand the answer.
 
-**BigQuery changes:** replace `load_raw` with `bq load` or external tables, change type names in the 3 staging models, and adjust the month expression. Sources and marts carry over. `QUALIFY` works on both, and using `dbt.dateadd` and `dbt.last_day` avoids engine-specific dates.
+**BigQuery changes:** replace `load_raw` with `bq load` or external tables, change type names in the 3 staging models, and adjust the 3 UTC date expressions and the conflict test. Models use standard SQL and dbt's cross-database macros, and `QUALIFY` works on both. Nothing has run on BigQuery yet.
 
 Section 3.7's scale table goes in the README as a short note.
 
@@ -471,15 +472,27 @@ Section 3.7's scale table goes in the README as a short note.
 | dbt Core 1.12.6, pinned | dbt 2 | `pip install` gives every reviewer the same version. dbt 2 adds speed and built-in lint and format commands, but it isn't on pip, and 14 models don't need it. The load ran on both |
 | `load_raw` as a dbt macro | Seeds, a Python loader, or external tables | Seeds aren't allowed. A macro keeps one tool and one list of tables |
 | All text in `raw` | Typed columns at load | A bad value fails in staging with a clear model name, and raw keeps the source as received |
-| Incremental load, full model rebuild | Incremental models | Rebuilds take seconds, and top users, recurring, and maturity need full history anyway. Section 3.7 gives the scale path |
+| Incremental load and staging, full rebuild after | Incremental models everywhere, or none | Staging is where new data arrives. Top users, recurring, and maturity need full history, so later layers rebuild. Section 3.7 gives the scale path |
 | Two grains and one user dimension | A full star schema | Dimensions would have little attribute data. `dim_month` and `fct_payout_attempts` would add models with no logic |
 | `CASE` for status rules | A mapping table | The rule is ordered and spans two columns, and a mapping table would need a seed |
 | Marts per business question | One wide mart, or saved queries | Each answer gets a grain, a test, and a definition of its own |
-| `mart_known_issues` | One warning test per issue | One table shows every issue with its dollar exposure, and a single test watches the baselines |
+| `mart_known_issues` | One warning test per issue | One table shows every issue with its dollar exposure, and a single test watches the baselines. `docs/04-data-quality-policy.md` gives severity and owners |
 | Vars only for assumptions | Vars for every threshold, or none | A reader can test what's arguable, and logic stays in SQL |
 | No dbt packages | `dbt_utils` | Built-in tests cover the need, so there's one less dependency |
 | No model contracts | Enforced contracts | They'd need every aggregate's exact decimal type. They're a good next step for production |
 | One schema with prefixes | A schema per layer, with a macro | Prefixes already show the layer |
+
+### 3.11 Bus matrix
+
+This shows the dimensional shape. Each row is a grain, and each column is a way to slice it.
+
+| Grain | Model | Month | User | Payment type | Provider | Country | Payout type |
+|---|---|---|---|---|---|---|---|
+| Payment | `fct_remittances` | Yes | Yes | Yes | | | |
+| Attempt | `int_payout_attempts` | | Yes | | Yes | Yes | Yes |
+| User | `dim_users` | First month | Yes | | | | |
+
+Only the user has attributes worth a table, so `dim_users` is the one dimension. Provider, country, and payment type would each be a single masked or coded column, so they stay on the facts. The attempt grain sits in the intermediate layer because its logic is shared, and marts read it directly as a public grain.
 
 ## 4. How each metric is traced
 
@@ -544,7 +557,8 @@ No-receipt payments stay in the chargeback denominator, because a dispute attach
 - We accept no Wilson columns, in exchange for simpler SQL. First-attempt rates settle the two borderline providers, and intervals wouldn't address provider mix, label changes, or routing.
 - We accept the monthly ranking appearing in both `dim_users` and `mart_monthly_volume`, because they rank over different windows.
 - We accept no `execute` guard in `load_raw`, because only `run-operation` calls it.
-- We accept full rebuilds after an incremental load, because they keep results simple to trust at this size. Section 3.7 gives the path for a larger one.
+- We accept full rebuilds after staging, because they keep results simple to trust at this size. Section 3.7 gives the path for a larger one.
+- We accept no unit test on the incremental filter, because it would need the table to exist before a first build. A batch run compared with a full refresh covers it.
 
 ## 8. Risks
 

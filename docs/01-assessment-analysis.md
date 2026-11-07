@@ -436,14 +436,14 @@ Severity should be intentional. Structural problems such as duplicate primary ke
 ### Avoid
 
 - Orchestration tools, Docker, or cloud infrastructure.
-- Incremental models or snapshots. The load is incremental, and models rebuild, because the data is small.
+- Incremental facts or snapshots. The load and staging are incremental, and later layers rebuild, because the data is small.
 - Streaming or Flink. A short note on how the design might evolve is enough.
 - Machine-learning clustering or a graph library.
 - A full star schema with dimensions that have little attribute data. Marts should exist only when they answer a real question.
 
 ## 8. Decisions
 
-[02-assumptions-and-rules.md](02-assumptions-and-rules.md) lists each assumption with its limitation and evidence, and [03-project-design.md](03-project-design.md) turns them into a project.
+[02-assumptions-and-rules.md](02-assumptions-and-rules.md) lists each assumption with its limitation and evidence, [03-project-design.md](03-project-design.md) turns them into a project, and [04-data-quality-policy.md](04-data-quality-policy.md) sets the data quality rules.
 
 ## Sources
 
