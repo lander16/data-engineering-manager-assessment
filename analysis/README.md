@@ -41,6 +41,7 @@ The script:
 | `sql/16_recurring_definitions.sql` | Calendar months against day windows for recurring customers |
 | `sql/17_provider_mix.sql` | Provider failures by destination and payout type, and each provider against its peers |
 | `check_semantic.py` | Compares the semantic-layer metrics to the marts. Needs `requirements-semantic.txt` and a finished `dbt build` |
+| `ai/` | Harness for the AI experiments in `docs/06-ai-evaluation.md`: mutation testing, agent accuracy, incident investigation, and status triage |
 | `results/` | Output of each script, plus source checksums |
 | `verification/` | Independent re-derivation of 137 figures in Python, with no DuckDB. All match. It doesn't cover the adopted status rule. Run with `python3 -I analysis/verification/independent_check.py` |
 

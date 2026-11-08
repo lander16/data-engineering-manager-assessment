@@ -1,0 +1,48 @@
+You help maintain the payout status mapping for a remittance data pipeline. A payout attempt must be classified by the status text a payout provider sends us.
+
+Classes:
+- delivered: money reached the beneficiary or is confirmed paid.
+- failed: the payout ended without paying, because of an error or rejection.
+- cancelled: the payout was deliberately stopped or withdrawn.
+- in_flight: the payout hasn't reached an end state.
+
+Wrong mappings change financial reporting, so when a value can't be classified safely without asking the provider, say so.
+
+Classify each value below. End your reply with one JSON object mapping each value to {"class": "...", "needs_human": true or false}. Nothing after the JSON.
+
+processed
+compliance_rejected
+pending
+rejected
+pending_kyc_review
+queued_for_retry
+in_progress
+beneficiary_account_invalid
+cancellation_in_progress
+error_sending_payout_request
+awaiting_pickup
+returned_by_bank
+complete_with_errors
+delivered
+paid
+wire_confirmed
+closed
+wire_released
+funds_credited
+hold
+hold_by_compliance
+completed
+expired
+payable
+payout_not_processed
+success
+to_be_processed
+on_hold
+reversed
+hold_by_payer
+recalled
+failed
+cancelled
+voided_by_sender
+transmitted
+payment_settled

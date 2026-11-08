@@ -1,0 +1,16 @@
+{
+ "Q1": "What was the total amount transacted in March 2026, in USD?",
+ "Q2": "How many remittances were delivered in June 2026?",
+ "Q3": "What was the total amount transacted across the whole dataset, in USD?",
+ "Q4": "How many users represent 50% of our total transacted volume?",
+ "Q5": "How many recurring customers do we have?",
+ "Q6": "What is the failed disbursement rate for Provider 3, as a percentage?",
+ "Q7": "What is the failed disbursement rate for Provider 8, as a percentage?",
+ "Q8": "What is the overall chargeback rate by payment count, as a percentage?",
+ "Q9": "How many clusters of two or more users send to the same beneficiary?",
+ "Q10": "How many users sent a delivered remittance in August 2026?",
+ "Q11": "What was the failed disbursement rate for Provider 12 in August 2026, by attempt date, as a percentage?",
+ "Q12": "What is the failed disbursement rate for bank payouts to Guatemala, as a percentage?",
+ "Q13": "How much promotion value was applied to delivered remittances, in USD?",
+ "Q14": "What is the chargeback rate by payment count, as a percentage, using only months old enough for chargebacks to be final?"
+}

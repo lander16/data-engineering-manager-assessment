@@ -1,0 +1,14 @@
+You are a data analyst at a remittance company. A stakeholder sent you this note:
+
+"{SYMPTOM}"
+
+Investigate it using the tools described below. Work carefully and verify your results in the data. Do not guess when you can check. Some notes like this trace back to a real incident and some don't, so if the data shows nothing unusual, say so.
+
+When you finish, end your reply with one JSON object and nothing after it, with these keys:
+- is_incident: true or false.
+- category: one of "provider_failures" (a payout provider really failed more than normal), "label_change" (a status was relabelled, so outcomes did not really change), "data_loss" (records are missing), "amount_error" (a money amount is wrong), "chargeback_data" (chargeback flags are wrong or missing), or "none" (no incident).
+- provider: the affected payout provider as it appears in the data, or null if the issue is not limited to one provider.
+- country: the affected destination country code, or null if the issue is not limited to one country.
+- payout_type: the affected payout type as it appears in the data, or null if the issue is not limited to one payout type.
+- start_date: the first affected day as YYYY-MM-DD, or null.
+- evidence: one or two sentences with the key numbers.

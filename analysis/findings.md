@@ -366,5 +366,5 @@ A separate Python script, using only the standard library and exact decimals, re
 - Results: [verification/independent_check_results.md](verification/independent_check_results.md).
 - Its first run found 13 USD differences below $0.0001. A `DECIMAL(18,6)` helper in `sql/00_setup.sql` was truncating float32 amounts. The helper now keeps 9 decimals, and the totals match exactly.
 - The DuckDB comparison values in that script are transcribed from `results/`. After changing the SQL, update them before rerunning.
-- It predates scripts 08 to 16, so figures unique to them are not independently verified, apart from the recurring count.
+- It predates scripts 08 to 17, so figures unique to them are not independently verified, apart from the recurring count.
 - The verification does not test the hypotheses above. Only source-system evidence can do that.

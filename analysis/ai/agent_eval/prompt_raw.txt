@@ -1,0 +1,2 @@
+
+Tools: run SQL with `./q "<sql>"` (DuckDB, read only). The data is in schema `raw`: tables `raw.payments`, `raw.receipts`, and `raw.disbursements`. Every column is text. There is no other documentation.

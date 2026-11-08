@@ -1,0 +1,22 @@
+{
+ "1": {
+  "a": "Payment operations says payout quality looked worse in the second half of June. What happened?",
+  "b": "Customer support says complaints about money not reaching beneficiaries picked up in the first half of September. Is something going on?",
+  "c": "The weekly payout review shows failed payouts dropping from late June onwards, but the operations team says they didn't fix anything. What's behind the change?",
+  "d": "Finance says the delivered remittance numbers for April look short of what they expected from the bank side. Can you look into it?",
+  "e": "Finance says promotion cost for May came in well over the marketing budget, and marketing says they didn't run anything new. What happened?",
+  "f": "The risk team thinks our chargeback numbers for the first quarter don't look right. The processor's statements show more disputes than our report does. Can you find out why?",
+  "g1": "Payment operations says payout quality felt a bit worse in the first half of March. What happened?",
+  "g2": "Customer support says it felt like more payouts were being cancelled in the second half of February. Is something going on?"
+ },
+ "2": {
+  "a": "Payment operations says payout quality looked worse in the first half of July. What happened?",
+  "b": "Customer support says tickets about payouts that never arrived went up in early September. Is something going on?",
+  "c": "In the provider review, someone said one provider's failure numbers look too good since around the end of May, but nobody remembers which one. Can you check?",
+  "d": "Finance says the delivered remittance numbers for August look short of what they expected from the bank side. Can you look into it?",
+  "e": "Finance says promotion cost for March came in well over the marketing budget, and marketing says they didn't run anything new. What happened?",
+  "f": "The risk team thinks our chargeback numbers for April don't look right. The processor's statements show more disputes than our report does. Can you find out why?",
+  "g1": "Customer support says complaints about money not reaching beneficiaries felt higher in the second half of February. Is something going on?",
+  "g2": "Finance says promotion cost in March felt higher than usual. What happened?"
+ }
+}

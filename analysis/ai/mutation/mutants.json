@@ -1,0 +1,1262 @@
+[
+ {
+  "id": "A01",
+  "batch": "first",
+  "category": "staging_order",
+  "file": "models/staging/stg_disbursements.sql",
+  "edits": [
+   {
+    "old": "order by _source_file desc, coalesce(updated_at, created_at) desc",
+    "new": "order by coalesce(updated_at, created_at) desc, _source_file desc",
+    "count": 1
+   }
+  ],
+  "defect": "Version order must be file first; updated_at first can keep an older file's row.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "A02",
+  "batch": "first",
+  "category": "staging_order",
+  "file": "models/staging/stg_receipts.sql",
+  "edits": [
+   {
+    "old": "order by _source_file desc, created_at desc",
+    "new": "order by _source_file, created_at desc",
+    "count": 1
+   }
+  ],
+  "defect": "Ascending _source_file keeps the earliest file's version instead of the latest.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "A03",
+  "batch": "first",
+  "category": "staging_order",
+  "file": "models/staging/stg_payments.sql",
+  "edits": [
+   {
+    "old": "order by _source_file desc, coalesce(updated_at, created_at) desc",
+    "new": "order by coalesce(updated_at, created_at) desc, _source_file desc",
+    "count": 1
+   }
+  ],
+  "defect": "Version order must be file first; updated_at first can keep an older file's row.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "A04",
+  "batch": "first",
+  "category": "staging_typing",
+  "file": "models/staging/stg_disbursements.sql",
+  "edits": [
+   {
+    "old": "lower(raw_status) as raw_status",
+    "new": "raw_status",
+    "count": 1
+   }
+  ],
+  "defect": "raw_status stops being lowercase, so the lowercase conflict rules in int_payout_attempts no longer match PAID/COMPLETED/CREATED; conflict counts fall.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "A05",
+  "batch": "first",
+  "category": "staging_typing",
+  "file": "models/staging/stg_receipts.sql",
+  "edits": [
+   {
+    "old": "cast(exchange_rate as decimal(18, 4))",
+    "new": "cast(exchange_rate as decimal(18, 2))",
+    "count": 1
+   }
+  ],
+  "defect": "Exchange rate is rounded to 2 decimals, losing FX precision.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "A06",
+  "batch": "first",
+  "category": "staging_typing",
+  "file": "models/staging/stg_disbursements.sql",
+  "edits": [
+   {
+    "old": "case when destination_country = 'COSTA RICA' then 'CR' else destination_country end as country_code",
+    "new": "destination_country as country_code",
+    "count": 1
+   }
+  ],
+  "defect": "Costa Rica stays as a full name, so disbursement country codes are no longer consistent ISO codes.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "A07",
+  "batch": "first",
+  "category": "money",
+  "file": "models/staging/stg_payments.sql",
+  "edits": [
+   {
+    "old": "cast(amount as decimal(18, 9))",
+    "new": "cast(amount as decimal(18, 2))",
+    "count": 1
+   }
+  ],
+  "defect": "Payment amounts are rounded to cents; sub-cent values are lost and totals drift.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "B01",
+  "batch": "first",
+  "category": "status_mapping",
+  "file": "models/intermediate/int_payout_attempts.sql",
+  "edits": [
+   {
+    "old": "when d.status = 'cancelled' then 'cancelled'",
+    "new": "when d.status in ('cancelled', 'cancellation_in_progress') then 'cancelled'",
+    "count": 1
+   }
+  ],
+  "defect": "cancellation_in_progress is an in-flight status, not cancelled.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "B02",
+  "batch": "first",
+  "category": "status_mapping",
+  "file": "models/intermediate/int_payout_attempts.sql",
+  "edits": [
+   {
+    "old": "when d.status = 'cancelled' then 'cancelled'",
+    "new": "when d.status in ('cancelled', 'rejected') then 'cancelled'",
+    "count": 1
+   },
+   {
+    "old": "when d.status in ('failed', 'rejected', 'error_sending_payout_request',",
+    "new": "when d.status in ('failed', 'error_sending_payout_request',",
+    "count": 1
+   }
+  ],
+  "defect": "rejected must map to failed; moving it to cancelled lowers failed rates.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "B03",
+  "batch": "first",
+  "category": "status_mapping",
+  "file": "models/intermediate/int_payout_attempts.sql",
+  "edits": [
+   {
+    "old": "when d.status in ('failed', 'rejected', 'error_sending_payout_request',\n                              'payout_not_processed') then 'failed'",
+    "new": "when d.status in ('failed', 'rejected', 'error_sending_payout_request') then 'failed'",
+    "count": 1
+   },
+   {
+    "old": "'hold_by_payer', 'cancellation_in_progress') then 'in_flight'",
+    "new": "'hold_by_payer', 'cancellation_in_progress', 'payout_not_processed') then 'in_flight'",
+    "count": 1
+   }
+  ],
+  "defect": "payout_not_processed must map to failed, not in flight.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "B04",
+  "batch": "first",
+  "category": "status_mapping",
+  "file": "models/intermediate/int_payout_attempts.sql",
+  "edits": [
+   {
+    "old": "('paid', 'success', 'completed', 'delivered') then 'delivered'",
+    "new": "('paid', 'success', 'completed') then 'delivered'",
+    "count": 1
+   }
+  ],
+  "defect": "delivered status falls to unknown.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "B05",
+  "batch": "first",
+  "category": "status_mapping",
+  "file": "models/intermediate/int_payout_attempts.sql",
+  "edits": [
+   {
+    "old": "('paid', 'success', 'completed', 'delivered') then 'delivered'",
+    "new": "('paid', 'success', 'completed', 'delivered', 'wire_confirmed') then 'delivered'",
+    "count": 1
+   },
+   {
+    "old": "'payable', 'wire_released', 'wire_confirmed', 'transmitted'",
+    "new": "'payable', 'wire_released', 'transmitted'",
+    "count": 1
+   }
+  ],
+  "defect": "wire_confirmed is in flight under the definitions, not delivered.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "B06",
+  "batch": "first",
+  "category": "status_mapping",
+  "file": "models/intermediate/int_payout_attempts.sql",
+  "edits": [
+   {
+    "old": "when d.status = 'cancelled' then 'cancelled'",
+    "new": "when d.status = 'cancelled' and d.raw_status in ('paid', 'completed') then 'delivered'\n            when d.status = 'cancelled' then 'cancelled'",
+    "count": 1
+   }
+  ],
+  "defect": "raw_status must never decide the attempt status.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "C01",
+  "batch": "first",
+  "category": "primary_attempt",
+  "file": "models/intermediate/int_payout_attempts.sql",
+  "edits": [
+   {
+    "old": "order by attempt_at, receipt_id",
+    "new": "order by disbursement_created_at, receipt_id",
+    "count": 1
+   }
+  ],
+  "defect": "Attempts must be ordered by the receipt created_at, not the disbursement's.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "C02",
+  "batch": "first",
+  "category": "primary_attempt",
+  "file": "models/intermediate/int_payout_attempts.sql",
+  "edits": [
+   {
+    "old": "coalesce(o.attempt_number = d.first_delivered_number, false)",
+    "new": "coalesce(o.attempt_number = d.last_delivered_number, false)",
+    "count": 1
+   }
+  ],
+  "defect": "Primary attempt must be the earliest delivered, not the latest.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "C03",
+  "batch": "first",
+  "category": "primary_attempt",
+  "file": "models/intermediate/int_payout_attempts.sql",
+  "edits": [
+   {
+    "old": "coalesce(o.attempt_status in ('failed', 'cancelled') and d.last_delivered_number",
+    "new": "coalesce(o.attempt_status = 'failed' and d.last_delivered_number",
+    "count": 1
+   }
+  ],
+  "defect": "Cancelled attempts followed by delivery stop being flagged; rescued_attempts and cancelled_then_delivered fall.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "C04",
+  "batch": "first",
+  "category": "money",
+  "file": "models/marts/fct_remittances.sql",
+  "edits": [
+   {
+    "old": "then amount_charged_usd + promotion_usd end) as extra_delivered_value_usd",
+    "new": "then amount_charged_usd end) as extra_delivered_value_usd",
+    "count": 1
+   }
+  ],
+  "defect": "Extra delivered value drops the promotion, unlike value_sent_usd.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "C05",
+  "batch": "first",
+  "category": "primary_attempt",
+  "file": "models/intermediate/int_payout_attempts.sql",
+  "edits": [
+   {
+    "old": "where attempt_status = 'delivered'\n    group by 1",
+    "new": "where attempt_status in ('delivered', 'in_flight')\n    group by 1",
+    "count": 1
+   }
+  ],
+  "defect": "The primary attempt must be a delivered attempt; an in-flight one can now be primary and take the money columns.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "D01",
+  "batch": "first",
+  "category": "flags",
+  "file": "models/marts/fct_remittances.sql",
+  "edits": [
+   {
+    "old": "payment_status in ('SUCCESSFUL', 'REFUNDED') as is_chargeback_eligible",
+    "new": "payment_status <> 'FAILED' as is_chargeback_eligible",
+    "count": 1
+   }
+  ],
+  "defect": "PENDING_USER_ACTION and STARTED payments become eligible; eligible means SUCCESSFUL or REFUNDED only.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "D02",
+  "batch": "first",
+  "category": "flags",
+  "file": "models/marts/fct_remittances.sql",
+  "edits": [
+   {
+    "old": "payment_status in ('SUCCESSFUL', 'REFUNDED') as is_chargeback_eligible",
+    "new": "payment_status = 'SUCCESSFUL' as is_chargeback_eligible",
+    "count": 1
+   }
+  ],
+  "defect": "REFUNDED payments must stay chargeback eligible.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "D03",
+  "batch": "first",
+  "category": "flags",
+  "file": "models/marts/fct_remittances.sql",
+  "edits": [
+   {
+    "old": "payment_status = 'SUCCESSFUL' and payout_outcome in ('delivered', 'multiple_delivered') as is_delivered_remittance",
+    "new": "payment_status in ('SUCCESSFUL', 'REFUNDED') and payout_outcome in ('delivered', 'multiple_delivered') as is_delivered_remittance",
+    "count": 1
+   }
+  ],
+  "defect": "A delivered remittance requires payment status SUCCESSFUL.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "D04",
+  "batch": "first",
+  "category": "flags",
+  "file": "models/marts/fct_remittances.sql",
+  "edits": [
+   {
+    "old": "payment_status = 'SUCCESSFUL' and payout_outcome in ('delivered', 'multiple_delivered') as is_delivered_remittance",
+    "new": "payment_status = 'SUCCESSFUL' and payout_outcome like '%delivered' as is_delivered_remittance",
+    "count": 1
+   }
+  ],
+  "defect": "LIKE '%delivered' also matches not_delivered.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "D05",
+  "batch": "first",
+  "category": "flags",
+  "file": "models/marts/fct_remittances.sql",
+  "edits": [
+   {
+    "old": "payment_status = 'SUCCESSFUL' and payout_outcome = 'no_receipt' as is_successful_without_receipt",
+    "new": "payout_outcome = 'no_receipt' as is_successful_without_receipt",
+    "count": 1
+   }
+  ],
+  "defect": "Failed and other non-successful payments with no receipt become 'successful without receipt'.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "E01",
+  "batch": "first",
+  "category": "money",
+  "file": "models/marts/fct_remittances.sql",
+  "edits": [
+   {
+    "old": "max(case when is_primary_attempt then amount_charged_usd + promotion_usd end) as value_sent_usd",
+    "new": "max(case when is_primary_attempt then amount_charged_usd end) as value_sent_usd",
+    "count": 1
+   }
+  ],
+  "defect": "value_sent_usd must include the promotion.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "E02",
+  "batch": "first",
+  "category": "money",
+  "file": "models/marts/fct_remittances.sql",
+  "edits": [
+   {
+    "old": "max(case when is_primary_attempt then promotion_usd end) as promotion_usd",
+    "new": "max(promotion_usd) as promotion_usd",
+    "count": 1
+   }
+  ],
+  "defect": "Promotion must come from the primary attempt, not the largest across all attempts.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "E03",
+  "batch": "first",
+  "category": "money",
+  "file": "models/marts/mart_monthly_volume.sql",
+  "edits": [
+   {
+    "old": "sum(case when is_delivered_remittance then value_sent_usd end) as value_sent_usd",
+    "new": "sum(value_sent_usd) as value_sent_usd",
+    "count": 1
+   }
+  ],
+  "defect": "value_sent_usd is set on payments with a delivered attempt even when the payment is FAILED or REFUNDED, so they enter the monthly total.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "E05",
+  "batch": "first",
+  "category": "money",
+  "file": "dbt_project.yml",
+  "edits": [
+   {
+    "old": "transacted_measure: customer_paid_usd",
+    "new": "transacted_measure: value_sent_usd",
+    "count": 1
+   }
+  ],
+  "defect": "Amount transacted must be customer-paid USD.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "E07",
+  "batch": "first",
+  "category": "money",
+  "file": "models/marts/mart_monthly_volume.sql",
+  "edits": [
+   {
+    "old": "sum(case when is_successful_payment then customer_paid_usd end) as all_successful_payments_usd",
+    "new": "sum(case when is_delivered_remittance then customer_paid_usd end) as all_successful_payments_usd",
+    "count": 1
+   }
+  ],
+  "defect": "all_successful_payments_usd must be the wider total, not delivered only.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "E09",
+  "batch": "first",
+  "category": "money",
+  "file": "models/marts/mart_known_issues.sql",
+  "edits": [
+   {
+    "old": "value_sent_usd - promotion_usd + fee_usd",
+    "new": "value_sent_usd + fee_usd",
+    "count": 2
+   }
+  ],
+  "defect": "The customer pays value sent minus promotion plus fee; dropping promotion inflates the gap.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "F01",
+  "batch": "first",
+  "category": "recurring",
+  "file": "models/marts/dim_users.sql",
+  "edits": [
+   {
+    "old": "'created_at', 'millisecond') }} / 86400000.0 as gap_days",
+    "new": "'created_at', 'day') }} as gap_days",
+    "count": 1
+   }
+  ],
+  "defect": "Gap must be fractional days; a day-boundary count changes who passes the over-1-day and 90-day rules.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "F02",
+  "batch": "first",
+  "category": "recurring",
+  "file": "models/marts/dim_users.sql",
+  "edits": [
+   {
+    "old": "days_since_first ~ \" > 1 and \"",
+    "new": "days_since_first ~ \" > 0 and \"",
+    "count": 1
+   }
+  ],
+  "defect": "Repeat needs more than 1 day after the first send; same-day repeats now count.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "F03",
+  "batch": "first",
+  "category": "top_users",
+  "file": "models/marts/mart_monthly_volume.sql",
+  "edits": [
+   {
+    "old": "count(case when running_usd - transacted_usd < 0.5 * month_usd then 1 end)",
+    "new": "count(case when running_usd < 0.5 * month_usd then 1 end)",
+    "count": 1
+   }
+  ],
+  "defect": "The top group must include the user who crosses 50%.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "F05",
+  "batch": "first",
+  "category": "recurring",
+  "file": "models/marts/dim_users.sql",
+  "edits": [
+   {
+    "old": "where is_delivered_remittance\n),\n\nactivity",
+    "new": "where is_successful_payment\n),\n\nactivity",
+    "count": 1
+   }
+  ],
+  "defect": "Recurring uses delivered remittances, not all successful payments.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "F06",
+  "batch": "first",
+  "category": "recurring",
+  "file": "models/marts/mart_recurring_cohorts.sql",
+  "edits": [
+   {
+    "old": "/ nullif(count(repeat_within_window), 0) as repeat_rate",
+    "new": "/ count(*) as repeat_rate",
+    "count": 1
+   }
+  ],
+  "defect": "repeat_rate denominator must be users with a full window, not all cohort users.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "F07",
+  "batch": "first",
+  "category": "top_users",
+  "file": "models/marts/dim_users.sql",
+  "edits": [
+   {
+    "old": "when b.first_attempt_beneficiaries <= 3 then '2-3'",
+    "new": "when b.first_attempt_beneficiaries < 3 then '2-3'",
+    "count": 1
+   }
+  ],
+  "defect": "Users with exactly 3 beneficiaries fall into 4-9.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "F08",
+  "batch": "first",
+  "category": "recurring",
+  "file": "dbt_project.yml",
+  "edits": [
+   {
+    "old": "recurring_window_days: 90",
+    "new": "recurring_window_days: 60",
+    "count": 1
+   }
+  ],
+  "defect": "The definition says at most 90 days.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "G01",
+  "batch": "first",
+  "category": "provider",
+  "file": "models/marts/mart_provider_failures.sql",
+  "edits": [
+   {
+    "old": "failed * 1.0 / nullif(delivered + failed, 0) as failed_rate",
+    "new": "failed * 1.0 / nullif(attempts, 0) as failed_rate",
+    "count": 1
+   }
+  ],
+  "defect": "Failed rate is failed over delivered plus failed; attempts also holds cancelled and in-flight.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "G02",
+  "batch": "first",
+  "category": "provider",
+  "file": "models/marts/mart_provider_failures.sql",
+  "edits": [
+   {
+    "old": "(failed + cancelled) * 1.0 / nullif(delivered + failed + cancelled, 0) as unsuccessful_terminal_rate",
+    "new": "(failed + cancelled) * 1.0 / nullif(delivered + failed, 0) as unsuccessful_terminal_rate",
+    "count": 1
+   }
+  ],
+  "defect": "Cancellations must be added to both sides of the unsuccessful terminal rate.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "G03",
+  "batch": "first",
+  "category": "provider",
+  "file": "models/marts/mart_provider_failures.sql",
+  "edits": [
+   {
+    "old": "count(case when attempt_status = 'failed' and attempt_number > 1 then 1 end) as retry_failed",
+    "new": "count(case when attempt_status = 'failed' and attempt_number >= 1 then 1 end) as retry_failed",
+    "count": 1
+   }
+  ],
+  "defect": "retry_failed now also counts first attempts.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "G04",
+  "batch": "first",
+  "category": "provider",
+  "file": "dbt_project.yml",
+  "edits": [
+   {
+    "old": "medium_below: 0.03",
+    "new": "medium_below: 0.05",
+    "count": 1
+   }
+  ],
+  "defect": "The class line is 3%; moving it reclassifies providers.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "G05",
+  "batch": "first",
+  "category": "provider",
+  "file": "dbt_project.yml",
+  "edits": [
+   {
+    "old": "min_attempts: 1000",
+    "new": "min_attempts: 100",
+    "count": 1
+   }
+  ],
+  "defect": "Low-volume providers get a class they should not have.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "G06",
+  "batch": "first",
+  "category": "provider",
+  "file": "models/marts/mart_provider_failures.sql",
+  "edits": [
+   {
+    "old": "when unsuccessful_terminal_rate < {{ classes.low_below }} then 'low'\n            when unsuccessful_terminal_rate < {{ classes.medium_below }} then 'medium'",
+    "new": "when failed_rate < {{ classes.low_below }} then 'low'\n            when failed_rate < {{ classes.medium_below }} then 'medium'",
+    "count": 1
+   }
+  ],
+  "defect": "unsuccessful_class must use the unsuccessful terminal rate.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "G07",
+  "batch": "first",
+  "category": "provider",
+  "file": "models/marts/mart_provider_failures.sql",
+  "edits": [
+   {
+    "old": "where attempt_status <> 'missing'",
+    "new": "where attempt_status in ('delivered', 'failed', 'cancelled')",
+    "count": 1
+   }
+  ],
+  "defect": "In-flight attempts leave the counts, so in_flight is always 0 and attempts is understated.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "G08",
+  "batch": "first",
+  "category": "provider",
+  "file": "models/marts/mart_provider_failures.sql",
+  "edits": [
+   {
+    "old": "when failed_rate < {{ classes.low_below }} then 'low'\n            when failed_rate < {{ classes.medium_below }} then 'medium'",
+    "new": "when first_attempt_failed_rate < {{ classes.low_below }} then 'low'\n            when first_attempt_failed_rate < {{ classes.medium_below }} then 'medium'",
+    "count": 1
+   }
+  ],
+  "defect": "failure_class must use failed_rate.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "H01",
+  "batch": "first",
+  "category": "chargeback",
+  "file": "models/marts/mart_chargeback_rate.sql",
+  "edits": [
+   {
+    "old": "dbt.dateadd('day', var('chargeback_maturity_days'), dbt.last_day('payment_month', 'month'))",
+    "new": "dbt.dateadd('day', var('chargeback_maturity_days'), 'payment_month')",
+    "count": 1
+   }
+  ],
+  "defect": "A month is final 120 days after it ends, not after it starts.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "H02",
+  "batch": "first",
+  "category": "chargeback",
+  "file": "dbt_project.yml",
+  "edits": [
+   {
+    "old": "chargeback_maturity_days: 120",
+    "new": "chargeback_maturity_days: 90",
+    "count": 1
+   }
+  ],
+  "defect": "The definition says 120 days.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "H03",
+  "batch": "first",
+  "category": "chargeback",
+  "file": "models/marts/mart_chargeback_rate.sql",
+  "edits": [
+   {
+    "old": "<= cast(extract_end_at at time zone 'UTC' as date) as is_mature",
+    "new": "< cast(extract_end_at at time zone 'UTC' as date) as is_mature",
+    "count": 1
+   }
+  ],
+  "defect": "The boundary day counts as mature.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "H04",
+  "batch": "first",
+  "category": "chargeback",
+  "file": "models/marts/mart_chargeback_rate.sql",
+  "edits": [
+   {
+    "old": "count(case when has_chargeback then 1 end) as flagged_payments",
+    "new": "count(has_chargeback) as flagged_payments",
+    "count": 1
+   }
+  ],
+  "defect": "count() of a boolean counts false too, so every payment is flagged.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "H05",
+  "batch": "first",
+  "category": "chargeback",
+  "file": "models/marts/mart_chargeback_rate.sql",
+  "edits": [
+   {
+    "old": "<= cast(extract_end_at at time zone 'UTC' as date) as is_mature",
+    "new": "<= current_date as is_mature",
+    "count": 1
+   }
+  ],
+  "defect": "Maturity is measured against the latest payment in the data, not today.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "I01",
+  "batch": "first",
+  "category": "time_zone",
+  "file": "models/staging/stg_payments.sql",
+  "edits": [
+   {
+    "old": "created_at at time zone 'UTC'",
+    "new": "created_at at time zone 'America/Mexico_City'",
+    "count": 1
+   }
+  ],
+  "defect": "Months are UTC calendar months.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "I02",
+  "batch": "first",
+  "category": "time_zone",
+  "file": "models/staging/stg_payments.sql",
+  "edits": [
+   {
+    "old": "date_trunc('month', created_at at time zone 'UTC')",
+    "new": "date_trunc('month', created_at)",
+    "count": 1
+   }
+  ],
+  "defect": "Month now depends on the session time zone.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "I03",
+  "batch": "first",
+  "category": "time_zone",
+  "file": "models/marts/mart_chargeback_rate.sql",
+  "edits": [
+   {
+    "old": "cast(extract_end_at at time zone 'UTC' as date)",
+    "new": "cast(extract_end_at as date)",
+    "count": 1
+   }
+  ],
+  "defect": "Extract end date now depends on the session time zone.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "I04",
+  "batch": "first",
+  "category": "time_zone",
+  "file": "models/marts/dim_users.sql",
+  "edits": [
+   {
+    "old": "min(payment_month) as first_delivered_month",
+    "new": "cast(date_trunc('month', min(first_delivered_at) at time zone 'America/New_York') as date) as first_delivered_month",
+    "count": 1
+   }
+  ],
+  "defect": "Cohort months must be UTC, and this moves users near a month boundary.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "J01",
+  "batch": "first",
+  "category": "join",
+  "file": "models/intermediate/int_payout_attempts.sql",
+  "edits": [
+   {
+    "old": "left join {{ ref('stg_disbursements') }} as d using (disbursement_id)",
+    "new": "join {{ ref('stg_disbursements') }} as d using (disbursement_id)",
+    "count": 1
+   }
+  ],
+  "defect": "Receipts with no disbursement vanish instead of becoming missing.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "J02",
+  "batch": "first",
+  "category": "join",
+  "file": "models/marts/fct_remittances.sql",
+  "edits": [
+   {
+    "old": "left join attempt_rollup as r using (payment_id)",
+    "new": "join attempt_rollup as r using (payment_id)",
+    "count": 1
+   }
+  ],
+  "defect": "Payments with no receipt vanish.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "J03",
+  "batch": "first",
+  "category": "join",
+  "file": "models/marts/dim_users.sql",
+  "edits": [
+   {
+    "old": "select distinct user_id\n    from {{ ref('fct_remittances') }}\n),",
+    "new": "select distinct user_id\n    from {{ ref('fct_remittances') }}\n    where is_delivered_remittance\n),",
+    "count": 1
+   }
+  ],
+  "defect": "dim_users is one row per user with a payment; users with no delivered remittance vanish.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "J04",
+  "batch": "first",
+  "category": "join",
+  "file": "models/intermediate/int_user_beneficiaries.sql",
+  "edits": [
+   {
+    "old": "from {{ ref('int_payout_attempts') }}\ngroup by 1, 2",
+    "new": "from {{ ref('int_payout_attempts') }}\nwhere attempt_status <> 'missing'\ngroup by 1, 2",
+    "count": 1
+   }
+  ],
+  "defect": "Pairs must span all observed attempts.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "J05",
+  "batch": "first",
+  "category": "join",
+  "file": "models/intermediate/int_payout_attempts.sql",
+  "edits": [
+   {
+    "old": "left join delivered_numbers as d using (payment_id)",
+    "new": "join delivered_numbers as d using (payment_id)",
+    "count": 1
+   }
+  ],
+  "defect": "Attempts on payments with no delivery vanish.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "J07",
+  "batch": "first",
+  "category": "join",
+  "file": "models/marts/fct_remittances.sql",
+  "edits": [
+   {
+    "old": "from {{ ref('int_payout_attempts') }}\n    group by 1",
+    "new": "from {{ ref('int_payout_attempts') }}\n    where attempt_status <> 'missing'\n    group by 1",
+    "count": 1
+   }
+  ],
+  "defect": "Payments with only missing attempts become no_receipt instead of missing_payout, and missing_attempts is always 0.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "K02",
+  "batch": "first",
+  "category": "semantic_yaml",
+  "file": "models/marts/_semantic.yml",
+  "edits": [
+   {
+    "old": "expr: case when attempt_status in ('delivered', 'failed') then 1 end",
+    "new": "expr: case when attempt_status in ('delivered', 'failed', 'cancelled') then 1 end",
+    "count": 1
+   }
+  ],
+  "defect": "Decided attempts feed the failed rate, whose denominator is delivered plus failed.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "K03",
+  "batch": "first",
+  "category": "semantic_yaml",
+  "file": "models/marts/_semantic.yml",
+  "edits": [
+   {
+    "old": "expr: case when is_chargeback_eligible then customer_paid_usd end",
+    "new": "expr: customer_paid_usd",
+    "count": 1
+   }
+  ],
+  "defect": "Settled value must be eligible payments only; the value rate denominator now holds all payments.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "L01",
+  "batch": "first",
+  "category": "known_issues",
+  "file": "models/marts/mart_known_issues.sql",
+  "edits": [
+   {
+    "old": "dbt.dateadd('day', -30, 'extract_end_at')",
+    "new": "dbt.dateadd('day', -60, 'extract_end_at')",
+    "count": 1
+   }
+  ],
+  "defect": "Issue in_flight_over_30_days now counts over 60 days.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "L02",
+  "batch": "first",
+  "category": "known_issues",
+  "file": "models/marts/mart_known_issues.sql",
+  "edits": [
+   {
+    "old": "and (customer_paid_usd + 0.25) / 6.25 = round((customer_paid_usd + 0.25) / 6.25)",
+    "new": "and (customer_paid_usd - 0.25) / 6.25 = round((customer_paid_usd - 0.25) / 6.25)",
+    "count": 1
+   }
+  ],
+  "defect": "Scheduled amounts have the form 6.25 x n - 0.25, so the check needs + 0.25.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "R01",
+  "batch": "held_out",
+  "category": "rerun",
+  "file": "models/staging/stg_payments.sql",
+  "edits": [
+   {
+    "old": "cast(amount as decimal(18, 9)) as amount_usd",
+    "new": "cast(amount as decimal(18, 2)) as amount_usd",
+    "count": 1
+   }
+  ],
+  "defect": "Payment amounts are rounded to 2 decimals in staging, which loses precision. This changes customer_paid_usd, transacted volume and the exact-match checks on scheduled amounts.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "R02",
+  "batch": "held_out",
+  "category": "rerun",
+  "file": "models/staging/stg_disbursements.sql",
+  "edits": [
+   {
+    "old": "then 'CR' else destination_country end as country_code",
+    "new": "then 'CRC' else destination_country end as country_code",
+    "count": 1
+   }
+  ],
+  "defect": "Costa Rica is normalized to the currency code CRC instead of the country code CR, so those disbursements get an invalid country_code.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "R03",
+  "batch": "held_out",
+  "category": "rerun",
+  "file": "models/intermediate/int_payout_attempts.sql",
+  "edits": [
+   {
+    "old": "row_number() over (partition by payment_id order by attempt_at, receipt_id) as attempt_number",
+    "new": "row_number() over (partition by payment_id order by attempt_at desc, receipt_id) as attempt_number",
+    "count": 1
+   }
+  ],
+  "defect": "Attempts are numbered newest first, so attempt 1 is the latest retry. This corrupts first-attempt and retry metrics, primary attempt selection and is_followed_by_delivery.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "R04",
+  "batch": "held_out",
+  "category": "rerun",
+  "file": "models/intermediate/int_user_beneficiaries.sql",
+  "edits": [
+   {
+    "old": "{{ dbt.bool_or('attempt_number = 1') }} as is_on_first_attempt",
+    "new": "{{ dbt.bool_or('is_primary_attempt') }} as is_on_first_attempt",
+    "count": 1
+   }
+  ],
+  "defect": "The flag now means the beneficiary was on the first delivered attempt, not on the first attempt. Beneficiaries whose first attempt failed are dropped or misattributed, which shifts beneficiary_segment.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "R05",
+  "batch": "held_out",
+  "category": "rerun",
+  "file": "models/marts/dim_users.sql",
+  "edits": [
+   {
+    "old": "\"gap_days > 1 and gap_days <= \"",
+    "new": "\"gap_days > 0 and gap_days <= \"",
+    "count": 1
+   }
+  ],
+  "defect": "Same-day repeat sends now count toward is_recurring, so users who only sent twice within 24 hours are wrongly labeled recurring.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "R06",
+  "batch": "held_out",
+  "category": "rerun",
+  "file": "models/marts/dim_users.sql",
+  "edits": [
+   {
+    "old": "<= r.extract_end_at",
+    "new": "<= r.last_delivered_at",
+    "count": 1
+   }
+  ],
+  "defect": "The full-window check uses the user's last delivery instead of the extract end. Users who stopped sending but have a complete observation window become NULL, which biases repeat_within_window upward.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "R07",
+  "batch": "held_out",
+  "category": "rerun",
+  "file": "models/marts/dim_users.sql",
+  "edits": [
+   {
+    "old": "when r.running_usd - r.transacted_usd < 0.5 * r.total_usd then 'top_50_pct_volume'",
+    "new": "when r.running_usd < 0.5 * r.total_usd then 'top_50_pct_volume'",
+    "count": 1
+   }
+  ],
+  "defect": "The check uses the inclusive running total, so the user who crosses the 50% line is pushed into long_tail.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "R08",
+  "batch": "held_out",
+  "category": "rerun",
+  "file": "models/marts/fct_remittances.sql",
+  "edits": [
+   {
+    "old": "when r.delivered_attempts >= 2 then 'multiple_delivered'",
+    "new": "when r.delivered_attempts > 2 then 'multiple_delivered'",
+    "count": 1
+   }
+  ],
+  "defect": "Payments with exactly two delivered attempts match neither delivered branch and fall through to another outcome such as not_delivered, so they lose delivered status.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "R09",
+  "batch": "held_out",
+  "category": "rerun",
+  "file": "models/marts/fct_remittances.sql",
+  "edits": [
+   {
+    "old": "payment_status = 'SUCCESSFUL' and payout_outcome in ('delivered', 'multiple_delivered') as is_delivered_remittance",
+    "new": "payout_outcome in ('delivered', 'multiple_delivered') as is_delivered_remittance",
+    "count": 1
+   }
+  ],
+  "defect": "The successful-payment condition is gone, so delivered payouts on FAILED and REFUNDED payments count as delivered remittances and inflate transacted volume.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "R10",
+  "batch": "held_out",
+  "category": "rerun",
+  "file": "models/marts/fct_remittances.sql",
+  "edits": [
+   {
+    "old": "max(created_at) over () as extract_end_at",
+    "new": "max(updated_at) over () as extract_end_at",
+    "count": 1
+   }
+  ],
+  "defect": "The extract end comes from the latest update rather than the latest created payment. This moves the cutoff later and changes maturity, partial-month, full-window and over-30-days logic.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "R11",
+  "batch": "held_out",
+  "category": "rerun",
+  "file": "models/marts/mart_chargeback_rate.sql",
+  "edits": [
+   {
+    "old": "dbt.last_day('payment_month', 'month')",
+    "new": "'payment_month'",
+    "count": 1
+   }
+  ],
+  "defect": "Maturity is counted from the first day of the month instead of the last, so a month is marked mature about 30 days too early.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "R12",
+  "batch": "held_out",
+  "category": "rerun",
+  "file": "models/marts/mart_known_issues.sql",
+  "edits": [
+   {
+    "old": "from payments where is_successful_payment and payout_outcome = 'not_delivered'",
+    "new": "from payments where payment_status <> 'FAILED' and payout_outcome = 'not_delivered'",
+    "count": 1
+   }
+  ],
+  "defect": "REFUNDED payments now pass the filter, so charged_undelivered_unrefunded counts customers who were already refunded.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "R13",
+  "batch": "held_out",
+  "category": "rerun",
+  "file": "models/marts/mart_known_issues.sql",
+  "edits": [
+   {
+    "old": "and round(customer_paid_usd, 2) <> round(value_sent_usd - promotion_usd + fee_usd, 2)",
+    "new": "and round(customer_paid_usd, 2) <> round(value_sent_usd + fee_usd, 2)",
+    "count": 1
+   }
+  ],
+  "defect": "The filter no longer subtracts the promotion, so every promoted payment that reconciles correctly is reported as a gap, and the filter disagrees with the sum expression.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "R14",
+  "batch": "held_out",
+  "category": "rerun",
+  "file": "models/marts/mart_known_issues.sql",
+  "edits": [
+   {
+    "old": "disbursement_created_at < {{ dbt.dateadd('minute', -1, 'attempt_at') }}",
+    "new": "disbursement_created_at < attempt_at",
+    "count": 1
+   }
+  ],
+  "defect": "The one-minute tolerance is removed, so ordinary clock skew between systems is counted as disbursement_before_receipt.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "R15",
+  "batch": "held_out",
+  "category": "rerun",
+  "file": "models/marts/mart_monthly_volume.sql",
+  "edits": [
+   {
+    "old": "order by transacted_usd desc, user_id",
+    "new": "order by transacted_usd, user_id",
+    "count": 1
+   }
+  ],
+  "defect": "The running total accumulates from the smallest senders up, so top_50_pct_user_share measures the bottom of the distribution and is far too high.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "R16",
+  "batch": "held_out",
+  "category": "rerun",
+  "file": "models/marts/mart_monthly_volume.sql",
+  "edits": [
+   {
+    "old": "where is_delivered_remittance",
+    "new": "where is_successful_payment",
+    "count": 1
+   }
+  ],
+  "defect": "Users with a successful but undelivered payment enter user_months with NULL volume. This inflates active, first-seen and returning senders and moves first_month earlier.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "R17",
+  "batch": "held_out",
+  "category": "rerun",
+  "file": "models/marts/mart_provider_failures.sql",
+  "edits": [
+   {
+    "old": "count(case when attempt_status = 'delivered' and attempt_number > 1 then 1 end) as retry_delivered",
+    "new": "count(case when attempt_status = 'delivered' and not is_primary_attempt then 1 end) as retry_delivered",
+    "count": 1
+   }
+  ],
+  "defect": "A successful retry is usually the primary attempt, so it is no longer counted. Only duplicate deliveries remain in retry_delivered, which inflates retry_failed_rate.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "R18",
+  "batch": "held_out",
+  "category": "rerun",
+  "file": "models/marts/mart_recurring_cohorts.sql",
+  "edits": [
+   {
+    "old": "nullif(count(repeat_within_window), 0) as repeat_rate",
+    "new": "nullif(count(*), 0) as repeat_rate",
+    "count": 1
+   }
+  ],
+  "defect": "The denominator includes users without a full observation window, which understates repeat_rate for recent cohorts.",
+  "survived_before_fix": true
+ },
+ {
+  "id": "R19",
+  "batch": "held_out",
+  "category": "rerun",
+  "file": "models/marts/mart_shared_beneficiaries.sql",
+  "edits": [
+   {
+    "old": "having count(*) > 1",
+    "new": "having count(*) >= 1",
+    "count": 1
+   }
+  ],
+  "defect": "Every beneficiary is returned, including those used by only one user, so the mart no longer isolates shared beneficiaries.",
+  "survived_before_fix": false
+ },
+ {
+  "id": "R20",
+  "batch": "held_out",
+  "category": "rerun",
+  "file": "models/marts/mart_user_segments.sql",
+  "edits": [
+   {
+    "old": "union all\n\n    select 'beneficiary_segment', beneficiary_segment, transacted_usd",
+    "new": "union\n\n    select 'beneficiary_segment', beneficiary_segment, transacted_usd",
+    "count": 1
+   }
+  ],
+  "defect": "UNION deduplicates the combined rows, so users with the same segment and the same transacted_usd collapse into one row. This undercounts users and volume, especially among zero-volume users.",
+  "survived_before_fix": false
+ }
+]

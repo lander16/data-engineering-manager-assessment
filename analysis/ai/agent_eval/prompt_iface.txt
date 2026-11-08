@@ -1,0 +1,2 @@
+
+Tools: this is the company's published data product. Run `./mf list metrics` and `./mf query --metrics <m> --group-by <d>` for governed metrics (`./mf query --help` shows filters), and `./q "<sql>"` for read-only SQL on the published tables, such as `mart_monthly_volume`, `mart_provider_failures`, `mart_chargeback_rate`, `fct_remittances`, `int_payout_attempts`, and `dim_users`. Definitions are in `catalog/_marts.yml`, `catalog/_semantic.yml`, and `catalog/_intermediate.yml`.

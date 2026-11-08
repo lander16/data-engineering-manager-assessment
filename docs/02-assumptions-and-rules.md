@@ -2,7 +2,7 @@
 
 The assessment leaves these definitions open, so each one below is an **adopted assumption**: a reasoned choice for this assessment, not a fact about Félix's business.
 
-Evidence comes from `analysis/sql/10` to `16`, with results in `analysis/results/`. Scripts 10 to 14 used an earlier status rule; section 10 explains what that affects.
+Evidence comes from `analysis/sql/10` to `17`, with results in `analysis/results/`. Scripts 10 to 14 used an earlier status rule; section 10 explains what that affects.
 
 ## 1. Adopted assumptions
 
@@ -220,7 +220,7 @@ The exclusion rests on one fact: these payments have no payout evidence. It does
 
 - **Many look scheduled.** In the `6.25 × n − 0.25` family, failures are 87% insufficient funds and retry daily with the same amount, which fits a saved card charged automatically. The $1.00 family has no such schedule, so this doesn't cover every record.
 - **Most don't look like late receipts.** 99.9% of receipts appear within 12 minutes, and the oldest batch charge is 52 days old. Only 1.6% fall within an hour of a delivered remittance. The 8 remittance-shaped amounts from the final days could still be missing receipts.
-- **No clear subscription pattern.** 94% of these users have just one such payment, but only about 8 weeks are visible, so a subscription can't be ruled out.
+- **No clear subscription pattern.** 94% of these users have just one such payment, but the payments only begin in late June, so a subscription can't be ruled out.
 - **Unknown:** what the product is. The documentation should say so instead of naming one.
 
 ### 8.2 Users
@@ -337,7 +337,7 @@ The second rate is the **unsuccessful terminal rate**: `(failed + cancelled) / (
 
 ## 9. What the data can't settle
 
-These stay stated assumptions in the README:
+These stay open, and the assumptions that depend on them are stated in the README:
 
 - What promotions are, and who funds them.
 - What the no-receipt payments are, and whether all of them share one explanation.

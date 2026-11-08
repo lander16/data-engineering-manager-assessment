@@ -1,0 +1,13 @@
+{
+ "Q1": "What was the total amount transacted to Guatemala, in USD?",
+ "Q2": "What was the total value sent on delivered remittances, in USD?",
+ "Q3": "What is the unsuccessful rate for Provider 8, as a percentage?",
+ "Q4": "What is the first-attempt failed rate for Provider 3, as a percentage?",
+ "Q5": "What is the 90-day repeat rate for users whose first delivered remittance was in March 2026, as a percentage?",
+ "Q6": "How many users are in the 4-9 beneficiary segment?",
+ "Q7": "How many SUCCESSFUL payments have a payout outcome of not_delivered?",
+ "Q8": "What share of June 2026 senders made up the top 50% of that month's volume, as a percentage?",
+ "Q9": "How many first-seen senders were there in May 2026?",
+ "Q10": "What is the chargeback value rate on months old enough for chargebacks to be final, as a percentage?",
+ "Q11": "How many recurring customers are also in the top 50% volume group?"
+}

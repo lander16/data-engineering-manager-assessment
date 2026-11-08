@@ -171,7 +171,7 @@ All models are tables in DuckDB's `main` schema, and `raw` is the only other sch
 │   ├── top_users_cross_half.sql
 │   ├── known_issues_within_baseline.sql
 │   └── extract_golden_numbers.sql
-├── docs/                   # analysis, assumptions, design, quality policy, business findings
+├── docs/                   # analysis, assumptions, design, quality policy, findings, AI evaluation
 └── analysis/               # profiling SQL, results, findings, semantic check
 ```
 
@@ -476,6 +476,7 @@ A unit test can't check a cast's precision, because dbt casts the expected value
 | Semantic metrics | `_semantic.yml`, which reads the columns the models own |
 | Public interface and data products | `access` in `dbt_project.yml`, and section 3.13 |
 | Business reading of the results | `docs/05-business-findings.md` |
+| AI experiments and their harness | `docs/06-ai-evaluation.md`, `analysis/ai/` |
 | Evidence | `analysis/` and `docs/` |
 
 The README stands alone and stays short. It covers how to run it, the lineage, a map from R1 to R13 to files, a results section with each metric's actual output and the command that reproduces it, adopted assumptions, data observations for follow-up in neutral terms, what would change on BigQuery, limitations, and an ownership plan. The numbered docs are supporting evidence, so a reviewer never needs them to understand the answer.
@@ -550,7 +551,7 @@ The last command queries each answer metric through MetricFlow and compares it t
 mf query --metrics provider_failed_rate,decided_attempts --group-by attempt__provider,attempt__country_code,attempt__payout_type
 ```
 
-The check runs 8 checks by month, provider, user class, and in total, and all match. Changing a metric's filter made it fail on the delivered, chargeback, recurring, and provider checks. Removing the eligibility filter from `flagged_payments` changed nothing, because no flagged payment sits outside the eligible set.
+The script runs 8 checks by month, provider, user class, and in total, and all match. Changing a metric's filter made it fail on the delivered, chargeback, recurring, and provider checks. Removing the eligibility filter from `flagged_payments` changed nothing, because no flagged payment sits outside the eligible set.
 
 ### 3.13 Data products
 

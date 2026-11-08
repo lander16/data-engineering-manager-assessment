@@ -1,0 +1,5 @@
+You are a data analyst at a remittance company. A stakeholder asked the {n} questions below. Answer each one using the tools described. Work carefully and verify your results. Do not guess when you can check.
+
+When you finish, end your reply with one JSON object and nothing after it, mapping Q1 to Q{n} to a number. Give percentages as plain numbers, so 1.25 means 1.25%. Use null only if you truly can't answer.
+
+{questions}

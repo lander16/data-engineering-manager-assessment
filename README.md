@@ -157,6 +157,6 @@ After that, I'd open it up as self-service: teams request access to data product
 
 ## More detail
 
-`docs/` holds the assessment analysis (01), rules and evidence (02), design (03), data quality policy (04), and business findings (05). `analysis/` holds the profiling SQL, results, and findings.
+`docs/` holds the assessment analysis (01), rules and evidence (02), design (03), data quality policy (04), business findings (05), and AI evaluation (06). `analysis/` holds the profiling SQL, results, and findings.
 
-AI coding assistants helped with profiling, drafting documents, writing the SQL, and reviewing it. The definitions and decisions are mine, and I checked the numbers against the data.
+AI coding assistants helped with profiling, drafting documents, writing the SQL, and reviewing it. The definitions and decisions are mine, and I checked the numbers against the data. I also tested where AI helps a data team, with a pass bar set before each run. AI-written logic bugs exposed gaps in the tests, which are now closed. Agents answered business questions correctly only when they had definitions. `docs/06-ai-evaluation.md` has the results, including the failures.
