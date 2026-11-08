@@ -165,7 +165,8 @@ All models are tables in DuckDB's `main` schema, and `raw` is the only other sch
 │           mart_provider_failures, mart_shared_beneficiaries,
 │           mart_chargeback_rate, mart_known_issues
 ├── tests/
-│   ├── generic/no_conflicting_versions.sql
+│   ├── generic/no_conflicting_versions.sql, generic/country_code.sql
+│   ├── staged_amounts_keep_source_precision.sql
 │   ├── marts_reconcile_to_facts.sql
 │   ├── top_users_cross_half.sql
 │   ├── known_issues_within_baseline.sql
@@ -429,32 +430,40 @@ The layers after staging aren't built this way, because it would add state to te
 
 ### 3.8 Tests
 
-Errors mean a grain, key, or definition is broken. Warnings mean a known source issue got worse or a pinned number moved. No packages are needed.
+Errors mean a grain, key, or definition is broken. Warnings mean a known source issue changed, a new raw status arrived, or a pinned number moved. No packages are needed.
 
 | Level | What it covers | Severity |
 |---|---|---|
-| Generic | Unique and not-null keys at every grain, `payment_id` relationships, accepted values, no `unknown` attempts, at most one primary attempt per payment, `unique` on `stg_receipts.disbursement_id`, and a relationship from `stg_disbursements` to `stg_receipts` so no disbursement is lost | Error |
+| Generic | Unique and not-null keys at every grain, `payment_id` relationships, accepted values, no `unknown` attempts, at most one primary attempt per payment, `unique` on `stg_receipts.disbursement_id`, a relationship from `stg_disbursements` to `stg_receipts` so no disbursement is lost, and 2 uppercase letters in each `country_code` | Error |
+| `accepted_values` on `stg_disbursements.raw_status` | Every lowercase raw status is one already seen, so a new provider value shows up | Warning |
+| `staged_amounts_keep_source_precision` | Each staged money and rate column equals its raw text cast at full precision | Error |
 | `no_conflicting_versions` | No two different rows tie on ID, file, and timestamp in `raw` | Error |
 | `marts_reconcile_to_facts` | Mart totals equal fact totals; `all_successful_payments_usd` ties to staging; each `segment_type` adds up to all users; active senders equal first seen plus returning | Error |
 | `top_users_cross_half` | The top class reaches 50%, and drops below it without its last user | Error |
-| `known_issues_within_baseline` | Returns any issue above its baseline | Warning |
-| `extract_golden_numbers` | Pins 788,976 payments, 720,630 delivered, $237,075,837, 59,511, 133,760, and 526 | Warning |
+| `known_issues_within_baseline` | Returns any issue that differs from its baseline. A drop warns too, because a broken definition can shrink an issue | Warning |
+| `extract_golden_numbers` | Pins 788,976 payments, 720,630 delivered, $237,075,837, 59,511, 133,760, 526, 4 mature chargeback months, and both classes for each provider | Warning |
 
-Issues at baseline stay visible in `mart_known_issues` without filling the log with permanent warnings. During a sensitivity run, the golden test warning is expected, because it shows what moved.
+Issues at baseline stay visible in `mart_known_issues` without filling the log with permanent warnings. During a sensitivity run, the golden test warning is expected, because it shows what moved. Mature months and provider classes are pinned because a change to `chargeback_maturity_days`, `provider_class`, or the maturity rule moved no other test.
 
 Unit tests cover logic the real data can't protect:
 
 | Model | Case |
 |---|---|
-| `stg_payments` | A timestamp near midnight lands in the right month; a sub-cent amount isn't rounded |
+| `stg_payments` | A timestamp near midnight lands in the right month |
 | `stg_payments` | A later file wins when `updated_at` is unchanged |
 | `int_payout_attempts` | `CANCELLED` with raw `PAID` stays cancelled and flagged; `Failed` with raw `cancelled` stays failed and flagged; a receipt with an orphan disbursement ID becomes `missing`; a new status becomes `unknown` |
+| `int_payout_attempts` | Every status in the mapping lands in its attempt status |
+| `int_payout_attempts` | Attempts follow receipt time even when disbursement times run the other way; a cancelled attempt before a delivery is followed by delivery; an in-flight attempt is never primary |
 | `int_user_beneficiaries` | A beneficiary seen only on a retry keeps its pair, with `is_on_first_attempt` false; several receipts for one user make one pair |
-| `fct_remittances` | Two delivered attempts count money once with a fixed primary; a no-receipt payment survives; a `FAILED` payment with a delivered attempt isn't delivered |
-| `dim_users` | Ties break by `user_id`; the crossing user is included; a user reaching exactly 50% is the last one included; sends 1 day apart aren't recurring, 90 days apart are, and 91 days apart aren't; a sender with daily gaps never qualifies; a retry-only beneficiary doesn't count toward the segment |
+| `fct_remittances` | Two delivered attempts count money once with a fixed primary; a no-receipt payment survives; a `FAILED` payment with a delivered attempt isn't delivered; only `SUCCESSFUL` and `REFUNDED` are chargeback eligible; the promotion comes from the primary attempt, and extra delivered value includes promotions |
+| `dim_users` | Ties break by `user_id`; the crossing user is included; a user reaching exactly 50% is the last one included; sends 1 day apart aren't recurring or a repeat, 90 days apart are recurring, and 91 days apart aren't; a sender with daily gaps never qualifies; the cohort month is the UTC payment month; a retry-only beneficiary doesn't count toward the segment; 3 beneficiaries is `2-3` and 4 is `4-9` |
+| `mart_recurring_cohorts` | `repeat_rate` divides by users with a full window, and is null when there are none |
 | `mart_monthly_volume`, `mart_chargeback_rate` | A month exactly at the maturity boundary; `is_partial_month` |
-| `mart_provider_failures` | A rate exactly on each class line and a count just under the minimum land in the right class, using small thresholds so fixtures stay short; missing attempts add no row; differing classes set `is_label_sensitive` |
+| `mart_monthly_volume` | With senders of 100, 10, 10, and 10, one in four is in the top half; an undelivered sender and a `FAILED` payment with a delivered attempt add no sender or value sent |
+| `mart_provider_failures` | A rate exactly on each class line and a count just under the minimum land in the right class, using small thresholds so fixtures stay short; missing attempts add no row; differing classes set `is_label_sensitive`; with delivered, failed, retried, cancelled, and in-flight attempts, each count and rate uses its own numerator and denominator |
 | `mart_shared_beneficiaries` | Two users on one key return one row, including when one reached it only on a retry; a key with one user returns none |
+
+A unit test can't check a cast's precision, because dbt casts the expected value to the column's own type. `staged_amounts_keep_source_precision` checks it on the real rows instead.
 
 `analysis/check_semantic.py` sits outside `dbt build`. It compares the semantic metrics to the marts, as section 3.12 describes.
 

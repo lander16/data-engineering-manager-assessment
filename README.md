@@ -13,7 +13,7 @@ dbt run-operation load_raw
 dbt build
 ```
 
-`dbt build` passes 82 items with 0 errors and 0 warnings. Load before you build, because unit tests need the `raw` tables to exist. Close any DuckDB session on `felix.duckdb` first, since it allows one writer.
+`dbt build` passes 94 items with 0 errors and 0 warnings. Load before you build, because unit tests need the `raw` tables to exist. Close any DuckDB session on `felix.duckdb` first, since it allows one writer.
 
 New data goes in `data/` as `<table>_YYYY-MM-DD.csv`, holding each record's full current state. Run the same two commands. `load_raw` loads only files it hasn't seen, and staging reads only rows loaded since its last run. After changing a staging model, run `dbt build --full-refresh`.
 
@@ -93,16 +93,16 @@ The marts answer each question. A small semantic layer in `models/marts/_semanti
 
 ## Where the tests are
 
-There are 67 tests. dbt keeps most of them in YAML, next to the models, so `tests/` holds only the custom ones.
+There are 79 tests. dbt keeps most of them in YAML, next to the models, so `tests/` holds only the custom ones.
 
 | Kind | Count | Where |
 |---|---:|---|
-| Generic tests: keys, relationships, accepted values, not null | 41 | `_staging.yml`, `_intermediate.yml`, `_marts.yml` |
+| Generic tests: keys, relationships, accepted values, not null, country codes | 44 | `_staging.yml`, `_intermediate.yml`, `_marts.yml` |
 | Conflicting-version test on each source | 3 | `tests/generic/`, applied in `_sources.yml` |
-| Singular tests: reconciliation, the 50% rule, issue baselines, pinned numbers | 4 | `tests/` |
-| Unit tests on synthetic rows | 19 | The `unit_tests:` block in each YAML file |
+| Singular tests: reconciliation, the 50% rule, issue baselines, pinned numbers, source precision | 5 | `tests/` |
+| Unit tests on synthetic rows | 27 | The `unit_tests:` block in each YAML file |
 
-Errors mean a grain or definition broke. Warnings mean a known issue grew or a pinned number moved. `docs/04-data-quality-policy.md` sets out the severity rules and owners.
+Errors mean a grain or definition broke. Warnings mean a known issue changed, a new raw status arrived, or a pinned number moved. `docs/04-data-quality-policy.md` sets out the severity rules and owners.
 
 ## Assumptions
 

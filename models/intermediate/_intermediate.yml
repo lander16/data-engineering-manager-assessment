@@ -58,6 +58,79 @@ unit_tests:
         - {receipt_id: r5, attempt_status: cancelled, status_conflict_type: cancelled_raw_paid}
         - {receipt_id: r6, attempt_status: cancelled, status_conflict_type: cancelled_raw_created}
 
+  - name: every_status_maps_to_one_attempt_status
+    model: int_payout_attempts
+    given:
+      - input: ref('stg_receipts')
+        rows:
+          - {receipt_id: cancelled, payment_id: cancelled, disbursement_id: cancelled, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: paid, payment_id: paid, disbursement_id: paid, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: success, payment_id: success, disbursement_id: success, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: completed, payment_id: completed, disbursement_id: completed, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: delivered, payment_id: delivered, disbursement_id: delivered, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: failed, payment_id: failed, disbursement_id: failed, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: rejected, payment_id: rejected, disbursement_id: rejected, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: error_sending_payout_request, payment_id: error_sending_payout_request, disbursement_id: error_sending_payout_request, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: payout_not_processed, payment_id: payout_not_processed, disbursement_id: payout_not_processed, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: payable, payment_id: payable, disbursement_id: payable, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: wire_released, payment_id: wire_released, disbursement_id: wire_released, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: wire_confirmed, payment_id: wire_confirmed, disbursement_id: wire_confirmed, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: transmitted, payment_id: transmitted, disbursement_id: transmitted, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: in_progress, payment_id: in_progress, disbursement_id: in_progress, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: pending, payment_id: pending, disbursement_id: pending, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: to_be_processed, payment_id: to_be_processed, disbursement_id: to_be_processed, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: on_hold, payment_id: on_hold, disbursement_id: on_hold, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: hold_by_compliance, payment_id: hold_by_compliance, disbursement_id: hold_by_compliance, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: hold_by_payer, payment_id: hold_by_payer, disbursement_id: hold_by_payer, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: cancellation_in_progress, payment_id: cancellation_in_progress, disbursement_id: cancellation_in_progress, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: never_seen_before, payment_id: never_seen_before, disbursement_id: never_seen_before, created_at: '2026-01-01 00:00:00+00'}
+      - input: ref('stg_disbursements')
+        rows:
+          - {disbursement_id: cancelled, status: cancelled}
+          - {disbursement_id: paid, status: paid}
+          - {disbursement_id: success, status: success}
+          - {disbursement_id: completed, status: completed}
+          - {disbursement_id: delivered, status: delivered}
+          - {disbursement_id: failed, status: failed}
+          - {disbursement_id: rejected, status: rejected}
+          - {disbursement_id: error_sending_payout_request, status: error_sending_payout_request}
+          - {disbursement_id: payout_not_processed, status: payout_not_processed}
+          - {disbursement_id: payable, status: payable}
+          - {disbursement_id: wire_released, status: wire_released}
+          - {disbursement_id: wire_confirmed, status: wire_confirmed}
+          - {disbursement_id: transmitted, status: transmitted}
+          - {disbursement_id: in_progress, status: in_progress}
+          - {disbursement_id: pending, status: pending}
+          - {disbursement_id: to_be_processed, status: to_be_processed}
+          - {disbursement_id: on_hold, status: on_hold}
+          - {disbursement_id: hold_by_compliance, status: hold_by_compliance}
+          - {disbursement_id: hold_by_payer, status: hold_by_payer}
+          - {disbursement_id: cancellation_in_progress, status: cancellation_in_progress}
+          - {disbursement_id: never_seen_before, status: never_seen_before}
+    expect:
+      rows:
+        - {receipt_id: cancelled, attempt_status: cancelled}
+        - {receipt_id: paid, attempt_status: delivered}
+        - {receipt_id: success, attempt_status: delivered}
+        - {receipt_id: completed, attempt_status: delivered}
+        - {receipt_id: delivered, attempt_status: delivered}
+        - {receipt_id: failed, attempt_status: failed}
+        - {receipt_id: rejected, attempt_status: failed}
+        - {receipt_id: error_sending_payout_request, attempt_status: failed}
+        - {receipt_id: payout_not_processed, attempt_status: failed}
+        - {receipt_id: payable, attempt_status: in_flight}
+        - {receipt_id: wire_released, attempt_status: in_flight}
+        - {receipt_id: wire_confirmed, attempt_status: in_flight}
+        - {receipt_id: transmitted, attempt_status: in_flight}
+        - {receipt_id: in_progress, attempt_status: in_flight}
+        - {receipt_id: pending, attempt_status: in_flight}
+        - {receipt_id: to_be_processed, attempt_status: in_flight}
+        - {receipt_id: on_hold, attempt_status: in_flight}
+        - {receipt_id: hold_by_compliance, attempt_status: in_flight}
+        - {receipt_id: hold_by_payer, attempt_status: in_flight}
+        - {receipt_id: cancellation_in_progress, attempt_status: in_flight}
+        - {receipt_id: never_seen_before, attempt_status: unknown}
+
   - name: attempts_are_ordered_and_the_primary_is_the_earliest_delivered
     model: int_payout_attempts
     given:
@@ -67,18 +140,30 @@ unit_tests:
           - {receipt_id: r1, payment_id: p1, disbursement_id: d1, created_at: '2026-01-01 00:00:00+00'}
           - {receipt_id: r2, payment_id: p1, disbursement_id: d2, created_at: '2026-01-02 00:00:00+00'}
           - {receipt_id: r4, payment_id: p2, disbursement_id: d4, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: z, payment_id: p3, disbursement_id: d5, created_at: '2026-01-01 00:00:00+00'}
+          - {receipt_id: y, payment_id: p3, disbursement_id: d6, created_at: '2026-01-02 00:00:00+00'}
+          - {receipt_id: x, payment_id: p3, disbursement_id: d7, created_at: '2026-01-03 00:00:00+00'}
+          - {receipt_id: w, payment_id: p3, disbursement_id: d8, created_at: '2026-01-04 00:00:00+00'}
       - input: ref('stg_disbursements')
         rows:
-          - {disbursement_id: d1, status: failed, raw_status: failed}
-          - {disbursement_id: d2, status: paid, raw_status: paid}
-          - {disbursement_id: d3, status: paid, raw_status: paid}
-          - {disbursement_id: d4, status: failed, raw_status: failed}
+          - {disbursement_id: d1, status: failed, raw_status: failed, created_at: '2026-01-03 00:00:00+00'}
+          - {disbursement_id: d2, status: paid, raw_status: paid, created_at: '2026-01-02 00:00:00+00'}
+          - {disbursement_id: d3, status: paid, raw_status: paid, created_at: '2026-01-01 00:00:00+00'}
+          - {disbursement_id: d4, status: failed, raw_status: failed, created_at: '2026-01-01 00:00:00+00'}
+          - {disbursement_id: d5, status: cancelled, raw_status: cancelled, created_at: '2026-01-04 00:00:00+00'}
+          - {disbursement_id: d6, status: pending, raw_status: pending, created_at: '2026-01-03 00:00:00+00'}
+          - {disbursement_id: d7, status: paid, raw_status: paid, created_at: '2026-01-02 00:00:00+00'}
+          - {disbursement_id: d8, status: failed, raw_status: failed, created_at: '2026-01-01 00:00:00+00'}
     expect:
       rows:
         - {receipt_id: r1, attempt_number: 1, is_primary_attempt: false, is_followed_by_delivery: true}
         - {receipt_id: r2, attempt_number: 2, is_primary_attempt: true, is_followed_by_delivery: false}
         - {receipt_id: r3, attempt_number: 3, is_primary_attempt: false, is_followed_by_delivery: false}
         - {receipt_id: r4, attempt_number: 1, is_primary_attempt: false, is_followed_by_delivery: false}
+        - {receipt_id: z, attempt_number: 1, is_primary_attempt: false, is_followed_by_delivery: true}
+        - {receipt_id: y, attempt_number: 2, is_primary_attempt: false, is_followed_by_delivery: false}
+        - {receipt_id: x, attempt_number: 3, is_primary_attempt: true, is_followed_by_delivery: false}
+        - {receipt_id: w, attempt_number: 4, is_primary_attempt: false, is_followed_by_delivery: false}
 
   - name: retry_only_beneficiary_keeps_its_pair
     model: int_user_beneficiaries

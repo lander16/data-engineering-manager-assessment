@@ -15,22 +15,23 @@ This policy says which data problems stop the build, which ones only warn, who a
 |---|---|---|---|
 | Structural | A grain, key, or definition is broken | Duplicate keys, a lost disbursement, a mart that doesn't reconcile, an unknown status | The build fails |
 | Ambiguous source | The data can't support one answer | Two different rows tied on ID, file, and timestamp | The build fails, and staging is skipped |
-| Known source issue | Accepted, with a baseline | Orphan receipts, status conflicts, no-receipt payments | Quiet at baseline, and warns when it grows |
-| Pinned number | A headline moved | Delivered volume, top users, recurring users | Warns |
+| Known source issue | Accepted, with a baseline | Orphan receipts, status conflicts, no-receipt payments | Quiet at baseline, and warns when it changes |
+| New raw status | A provider sent a `raw_status` not seen before | A new label from a provider | Warns |
+| Pinned number | A headline moved | Delivered volume, top users, recurring users, mature months, provider classes | Warns |
 
-An unknown status fails on purpose. A new provider value must get a mapping before it reaches a metric.
+An unknown status fails on purpose. A new provider value must get a mapping before it reaches a metric. A new `raw_status` only warns, because `status` decides.
 
 ## Checks by layer
 
 | Layer | What it checks | How |
 |---|---|---|
 | `raw` | No conflicting versions of a record | `no_conflicting_versions` on each source |
-| Staging | Unique keys, required values, relationships, casts | Generic tests, and a cast that fails in its own model |
+| Staging | Unique keys, required values, relationships, casts at full precision, 2-letter country codes, known raw statuses | Generic tests, `staged_amounts_keep_source_precision`, and a cast that fails in its own model |
 | Intermediate | Every status is known, and each pair is unique | `accepted_values`, `unique` |
 | Facts and marts | Totals reconcile, and the 50% rule holds | `marts_reconcile_to_facts`, `top_users_cross_half` |
-| Known issues | No issue grows past its baseline | `known_issues_within_baseline` |
-| Headlines | Pinned numbers hold | `extract_golden_numbers` |
-| Logic | Rules hold on synthetic edge cases | 19 unit tests |
+| Known issues | No issue moves from its baseline, up or down. A drop can mean a broken definition | `known_issues_within_baseline` |
+| Headlines | Pinned numbers, mature months, and provider classes hold | `extract_golden_numbers` |
+| Logic | Rules hold on synthetic edge cases | 27 unit tests |
 | Semantic layer | Metrics match the marts | `analysis/check_semantic.py`, run by hand because MetricFlow is optional |
 
 ## Known issues by owner
@@ -48,8 +49,8 @@ These owners are proposals. The right names depend on the team.
 
 ## Responding to a warning
 
-1. Read `mart_known_issues` to see what grew, and by how much.
-2. Decide whether it's a new batch of the same issue or a new cause.
+1. Read `mart_known_issues` to see what changed, and by how much.
+2. Decide whether it's a new batch of the same issue, a new cause, or a changed definition.
 3. If it's expected, update the baseline in the same PR, and state why.
 4. If it isn't, open an issue with its owner, and leave the baseline alone.
 

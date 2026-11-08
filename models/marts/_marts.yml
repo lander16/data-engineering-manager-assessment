@@ -165,6 +165,47 @@ unit_tests:
         - {payment_id: p1, extract_end_at: '2026-01-03 00:00:00+00'}
         - {payment_id: p2, extract_end_at: '2026-01-03 00:00:00+00'}
 
+  - name: chargeback_eligibility_follows_payment_status
+    model: fct_remittances
+    overrides:
+      vars:
+        transacted_measure: customer_paid_usd
+    given:
+      - input: ref('stg_payments')
+        rows:
+          - {payment_id: successful, payment_status: SUCCESSFUL, created_at: '2026-01-01 00:00:00+00'}
+          - {payment_id: refunded, payment_status: REFUNDED, created_at: '2026-01-01 00:00:00+00'}
+          - {payment_id: failed, payment_status: FAILED, created_at: '2026-01-01 00:00:00+00'}
+          - {payment_id: started, payment_status: STARTED, created_at: '2026-01-01 00:00:00+00'}
+          - {payment_id: pending, payment_status: PENDING_USER_ACTION, created_at: '2026-01-01 00:00:00+00'}
+      - input: ref('int_payout_attempts')
+        rows: []
+    expect:
+      rows:
+        - {payment_id: successful, is_successful_payment: true, is_chargeback_eligible: true, is_successful_without_receipt: true}
+        - {payment_id: refunded, is_successful_payment: false, is_chargeback_eligible: true, is_successful_without_receipt: false}
+        - {payment_id: failed, is_successful_payment: false, is_chargeback_eligible: false, is_successful_without_receipt: false}
+        - {payment_id: started, is_successful_payment: false, is_chargeback_eligible: false, is_successful_without_receipt: false}
+        - {payment_id: pending, is_successful_payment: false, is_chargeback_eligible: false, is_successful_without_receipt: false}
+
+  - name: promotion_and_extra_value_come_from_the_right_attempts
+    model: fct_remittances
+    overrides:
+      vars:
+        transacted_measure: customer_paid_usd
+    given:
+      - input: ref('stg_payments')
+        rows:
+          - {payment_id: p1, payment_status: SUCCESSFUL, amount_usd: 105.00, created_at: '2026-01-01 00:00:00+00'}
+      - input: ref('int_payout_attempts')
+        rows:
+          - {payment_id: p1, attempt_status: failed, is_primary_attempt: false, amount_charged_usd: 100.00, promotion_usd: 9.00, fee_usd: 3.00}
+          - {payment_id: p1, attempt_status: delivered, is_primary_attempt: true, amount_charged_usd: 100.00, promotion_usd: 2.00, fee_usd: 3.00}
+          - {payment_id: p1, attempt_status: delivered, is_primary_attempt: false, amount_charged_usd: 50.00, promotion_usd: 5.00, fee_usd: 3.00}
+    expect:
+      rows:
+        - {payment_id: p1, value_sent_usd: 102.00, fee_usd: 3.00, promotion_usd: 2.00, extra_delivered_value_usd: 55.00}
+
   - name: top_class_includes_the_crossing_user
     model: dim_users
     overrides: &dim_vars
@@ -284,6 +325,75 @@ unit_tests:
         - {user_id: a, beneficiary_segment: '1'}
         - {user_id: b, beneficiary_segment: none}
 
+  - name: a_repeat_needs_more_than_one_day
+    model: dim_users
+    overrides: *dim_vars
+    given:
+      - input: ref('fct_remittances')
+        rows:
+          - {payment_id: a1, user_id: next_day, is_delivered_remittance: true, transacted_usd: 1, created_at: '2026-01-01 00:00:00+00', extract_end_at: '2026-09-01 00:00:00+00'}
+          - {payment_id: a2, user_id: next_day, is_delivered_remittance: true, transacted_usd: 1, created_at: '2026-01-02 00:00:00+00', extract_end_at: '2026-09-01 00:00:00+00'}
+          - {payment_id: b1, user_id: two_days, is_delivered_remittance: true, transacted_usd: 1, created_at: '2026-01-01 00:00:00+00', extract_end_at: '2026-09-01 00:00:00+00'}
+          - {payment_id: b2, user_id: two_days, is_delivered_remittance: true, transacted_usd: 1, created_at: '2026-01-03 00:00:00+00', extract_end_at: '2026-09-01 00:00:00+00'}
+      - input: ref('int_user_beneficiaries')
+        rows: []
+    expect:
+      rows:
+        - {user_id: next_day, repeat_within_window: false}
+        - {user_id: two_days, repeat_within_window: true}
+
+  - name: cohort_month_is_the_utc_payment_month
+    model: dim_users
+    overrides: *dim_vars
+    given:
+      - input: ref('fct_remittances')
+        rows:
+          - {payment_id: p1, user_id: a, is_delivered_remittance: true, transacted_usd: 1, payment_month: 2026-02-01, created_at: '2026-02-01 03:00:00+00', extract_end_at: '2026-09-01 00:00:00+00'}
+          - {payment_id: p2, user_id: a, is_delivered_remittance: true, transacted_usd: 1, payment_month: 2026-03-01, created_at: '2026-03-01 03:00:00+00', extract_end_at: '2026-09-01 00:00:00+00'}
+      - input: ref('int_user_beneficiaries')
+        rows: []
+    expect:
+      rows:
+        - {user_id: a, first_delivered_month: 2026-02-01}
+
+  - name: beneficiary_segments_at_their_bounds
+    model: dim_users
+    overrides: *dim_vars
+    given:
+      - input: ref('fct_remittances')
+        rows:
+          - {payment_id: p1, user_id: three, is_delivered_remittance: false, created_at: '2026-01-01 00:00:00+00', extract_end_at: '2026-09-01 00:00:00+00'}
+          - {payment_id: p2, user_id: four, is_delivered_remittance: false, created_at: '2026-01-01 00:00:00+00', extract_end_at: '2026-09-01 00:00:00+00'}
+      - input: ref('int_user_beneficiaries')
+        rows:
+          - {user_id: three, beneficiary_key: b1, is_on_first_attempt: true}
+          - {user_id: three, beneficiary_key: b2, is_on_first_attempt: true}
+          - {user_id: three, beneficiary_key: b3, is_on_first_attempt: true}
+          - {user_id: four, beneficiary_key: b1, is_on_first_attempt: true}
+          - {user_id: four, beneficiary_key: b2, is_on_first_attempt: true}
+          - {user_id: four, beneficiary_key: b3, is_on_first_attempt: true}
+          - {user_id: four, beneficiary_key: b4, is_on_first_attempt: true}
+    expect:
+      rows:
+        - {user_id: three, beneficiary_segment: '2-3'}
+        - {user_id: four, beneficiary_segment: '4-9'}
+
+  - name: repeat_rate_counts_only_users_with_a_full_window
+    model: mart_recurring_cohorts
+    given:
+      - input: ref('dim_users')
+        rows:
+          - {user_id: a, first_delivered_month: 2026-01-01, is_recurring: true, repeat_within_window: true}
+          - {user_id: b, first_delivered_month: 2026-01-01, is_recurring: false, repeat_within_window: false}
+          - {user_id: c, first_delivered_month: 2026-01-01, is_recurring: false, repeat_within_window: null}
+          - {user_id: d, first_delivered_month: 2026-01-01, is_recurring: false, repeat_within_window: null}
+          - {user_id: e, first_delivered_month: 2026-02-01, is_recurring: false, repeat_within_window: null}
+          - {user_id: f, first_delivered_month: null, is_recurring: false, repeat_within_window: null}
+    expect:
+      rows:
+        - {first_delivered_month: 2026-01-01, users: 4, recurring_users: 1, recurring_share: 0.25, users_with_full_window: 2, repeat_users: 1, repeat_rate: 0.5}
+        - {first_delivered_month: 2026-02-01, users: 1, recurring_users: 0, recurring_share: 0, users_with_full_window: 0, repeat_users: 0, repeat_rate: null}
+
   - name: only_the_month_holding_the_extract_end_is_partial
     model: mart_monthly_volume
     given:
@@ -295,6 +405,21 @@ unit_tests:
       rows:
         - {payment_month: 2026-08-01, is_partial_month: false, first_seen_senders: 1, returning_senders: 0}
         - {payment_month: 2026-09-01, is_partial_month: true, first_seen_senders: 0, returning_senders: 1}
+
+  - name: monthly_share_and_senders_count_only_delivered_remittances
+    model: mart_monthly_volume
+    given:
+      - input: ref('fct_remittances')
+        rows:
+          - {payment_id: p1, user_id: a, payment_month: 2026-01-01, is_delivered_remittance: true, is_successful_payment: true, transacted_usd: 100, customer_paid_usd: 100, value_sent_usd: 97, extract_end_at: '2026-09-22 14:00:00+00'}
+          - {payment_id: p2, user_id: b, payment_month: 2026-01-01, is_delivered_remittance: true, is_successful_payment: true, transacted_usd: 10, customer_paid_usd: 10, value_sent_usd: 9, extract_end_at: '2026-09-22 14:00:00+00'}
+          - {payment_id: p3, user_id: c, payment_month: 2026-01-01, is_delivered_remittance: true, is_successful_payment: true, transacted_usd: 10, customer_paid_usd: 10, value_sent_usd: 9, extract_end_at: '2026-09-22 14:00:00+00'}
+          - {payment_id: p4, user_id: d, payment_month: 2026-01-01, is_delivered_remittance: true, is_successful_payment: true, transacted_usd: 10, customer_paid_usd: 10, value_sent_usd: 9, extract_end_at: '2026-09-22 14:00:00+00'}
+          - {payment_id: p5, user_id: undelivered, payment_month: 2026-01-01, is_delivered_remittance: false, is_successful_payment: true, transacted_usd: null, customer_paid_usd: 20, value_sent_usd: null, extract_end_at: '2026-09-22 14:00:00+00'}
+          - {payment_id: p6, user_id: failed_but_paid_out, payment_month: 2026-01-01, is_delivered_remittance: false, is_successful_payment: false, transacted_usd: null, customer_paid_usd: 50, value_sent_usd: 47, extract_end_at: '2026-09-22 14:00:00+00'}
+    expect:
+      rows:
+        - {payment_month: 2026-01-01, delivered_remittances: 4, transacted_usd: 130, value_sent_usd: 124, all_successful_payments_usd: 150, active_senders: 4, top_50_pct_user_share: 0.25}
 
   - name: month_matures_exactly_at_the_boundary
     model: mart_chargeback_rate
@@ -341,6 +466,25 @@ unit_tests:
         - {provider: at_medium_line, failure_class: high, unsuccessful_class: high, is_label_sensitive: false}
         - {provider: too_few, failure_class: insufficient_volume, unsuccessful_class: insufficient_volume, is_label_sensitive: false}
         - {provider: label_sensitive, failure_class: low, unsuccessful_class: high, is_label_sensitive: true}
+
+  - name: provider_rates_use_their_own_numerators_and_denominators
+    model: mart_provider_failures
+    overrides:
+      vars:
+        provider_class: {low_below: 0.1, medium_below: 0.55, min_attempts: 1}
+    given:
+      - input: ref('int_payout_attempts')
+        rows:
+          - {provider: p, attempt_status: delivered, attempt_number: 1, is_primary_attempt: true, is_followed_by_delivery: false}
+          - {provider: p, attempt_status: delivered, attempt_number: 2, is_primary_attempt: true, is_followed_by_delivery: false}
+          - {provider: p, attempt_status: failed, attempt_number: 1, is_primary_attempt: false, is_followed_by_delivery: true}
+          - {provider: p, attempt_status: failed, attempt_number: 2, is_primary_attempt: false, is_followed_by_delivery: false}
+          - {provider: p, attempt_status: cancelled, attempt_number: 1, is_primary_attempt: false, is_followed_by_delivery: true}
+          - {provider: p, attempt_status: in_flight, attempt_number: 1, is_primary_attempt: false, is_followed_by_delivery: false}
+          - {provider: null, attempt_status: missing, attempt_number: 1, is_primary_attempt: false, is_followed_by_delivery: false}
+    expect:
+      rows:
+        - {provider: p, attempts: 6, delivered: 2, failed: 2, cancelled: 1, in_flight: 1, rescued_attempts: 2, failed_rate: 0.5, first_attempt_failed_rate: 0.5, retry_failed_rate: 0.5, cancelled_rate: 0.2, unsuccessful_terminal_rate: 0.6, failure_class: medium, unsuccessful_class: high, is_label_sensitive: true}
 
   - name: two_users_on_one_key_are_shared_even_on_a_retry
     model: mart_shared_beneficiaries
