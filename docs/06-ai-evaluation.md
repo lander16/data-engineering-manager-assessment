@@ -23,7 +23,7 @@ The unit test for sub-cent amounts couldn't fail. dbt casts the expected value t
 
 The tests added afterward catch all 35 targeted survivors: 27 fail the build and 8 warn. The other 2 sit in the semantic layer, and `analysis/check_semantic.py` catches them. Section 3.8 of the design lists the new tests.
 
-An outside review later reran all 83 against the new tests. It found 3 more real gaps: file order for receipts and disbursements, and which rate sets the provider class. Tests for those now fail the build. Of the 4 that still pass, 2 change only the semantic layer, and 2 drop a UTC conversion that changes nothing while the session runs in UTC.
+A later rerun of all 83 against the new tests found 3 more real gaps: file order for receipts and disbursements, and which rate sets the provider class. Tests for those now fail the build. Of the 4 that still pass, 2 change only the semantic layer, and 2 drop a UTC conversion that changes nothing while the session runs in UTC.
 
 **Why it matters.** Passing tests said little about whether the logic was right. Mutation testing measures that directly, and it needs no AI to rerun.
 
