@@ -42,7 +42,7 @@ The script:
 | `sql/17_provider_mix.sql` | Provider failures by destination and payout type, and each provider against its peers |
 | `check_semantic.py` | Compares the semantic-layer metrics to the marts. Needs `requirements-semantic.txt` and a finished `dbt build` |
 | `ai/` | Harness for the AI experiments in `docs/06-ai-evaluation.md`: mutation testing, agent accuracy, incident investigation, and status triage |
-| `results/` | Output of each script, plus source checksums |
+| `results/` | Output of each script except the two setup scripts, plus source checksums |
 | `verification/` | Independent re-derivation of 137 profiling figures in Python, with no DuckDB. All match. It uses the earlier provider rates and counts beneficiaries on all attempts, so it doesn't cover the adopted status rule or the beneficiary segments. Run with `python3 -I analysis/verification/independent_check.py` |
 
 Query titles in scripts 11 to 14 use labels from when those questions were open, such as `Q5` and `Y6`. Assumptions now live in [docs/02-assumptions-and-rules.md](../docs/02-assumptions-and-rules.md).

@@ -17,7 +17,11 @@ duckdb -no-agent "$db" < analysis/sql/00_setup.sql
 for sql_file in analysis/sql/0[1-9]_*.sql analysis/sql/1[0-9]_*.sql; do
     name="$(basename "$sql_file" .sql)"
     echo "Running $name"
-    duckdb -no-agent -markdown "$db" < "$sql_file" > "analysis/results/$name.md"
+    if [[ "$name" == *_setup ]]; then
+        duckdb -no-agent "$db" < "$sql_file"
+    else
+        duckdb -no-agent -markdown "$db" < "$sql_file" > "analysis/results/$name.md"
+    fi
 done
 
 shasum -a 256 -c analysis/results/source_checksums.sha256
