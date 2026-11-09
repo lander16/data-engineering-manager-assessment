@@ -308,7 +308,7 @@ Failure rates under each reading, per attempt, for `failed` and `rejected` rows:
 - Calculate the failed rate as `failed / (delivered + failed)`, which is slightly higher than the strict rates above. Provider 8 moves from 0.42% to 0.44%.
 - Classify providers by that rate: `low` below 1%, `medium` from 1% to below 3%, and `high` at 3% or above.
 - Publish a second class on the **unsuccessful terminal rate**, `(failed + cancelled) / (delivered + failed + cancelled)`, plus a label-sensitive flag. A cancellation might come from a user, operations, compliance, or the provider, so this rate counts outcomes and doesn't assign fault.
-- Mark providers with fewer than 1,000 attempts as `insufficient_volume`.
+- Mark providers with fewer than 1,000 attempts, or no delivered or failed attempts, as `insufficient_volume`.
 
 The second class exists because the labels mean different things by provider: Provider 8 uses `failed` only for instant rejections, and Provider 12's labels shift during the year.
 

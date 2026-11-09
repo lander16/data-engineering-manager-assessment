@@ -16,7 +16,7 @@ Evidence comes from `analysis/sql/10` to `17`, with results in `analysis/results
 | A6 | Top-user window | Full extract, plus each month's concentration | 59,511 of 391,244 users; 13.1% to 14.1% a month | Favors tenure, and it isn't a stable VIP list |
 | A7 | Beneficiary clusters | Literal output on all observed pairs, segments on first observed attempts, and no proxy links | 0 shared | `beneficiary_id` is treated as a sender's saved record |
 | A8 | Status conflicts | `status` decides, and `raw_status` only raises a conflict flag | 3,137 flagged rows; Provider 3 is 1.44% `medium` | Supported by behavior, not proven. 37 payments ($18,527) may have been delivered and stay excluded |
-| A9 | Provider classes | Failed rate under 1% is `low`, under 3% is `medium`, otherwise `high`; under 1,000 attempts is `insufficient_volume`. A second class uses the unsuccessful terminal rate | Providers 7, 8, and 12 are label-sensitive | The thresholds are a convention, and `failed` and `cancelled` aren't comparable across providers |
+| A9 | Provider classes | Failed rate under 1% is `low`, under 3% is `medium`, otherwise `high`; under 1,000 attempts, or no delivered or failed attempts, is `insufficient_volume`. A second class uses the unsuccessful terminal rate | Providers 7, 8, and 12 are label-sensitive | The thresholds are a convention, and `failed` and `cancelled` aren't comparable across providers |
 | A10 | Chargebacks | The flag means a dispute was raised, whatever the outcome. Settled payments are the denominator, by payment month | 526 of 730,271 = 0.072% | There's no dispute date or outcome |
 | A11 | Chargeback maturity | A month is mature 120 days after it ends. Section 8.3 gives the reasoning | January to April: 0.079% | Outside knowledge about dispute windows, not measured from the data |
 | A12 | In-flight payouts | `SUCCESSFUL` payments whose payout isn't confirmed stay out of the headline, and `all_successful_payments_usd` sits beside it | 1,279 payments, $563K | Some will deliver later, so recent months can rise |
@@ -28,7 +28,7 @@ Evidence comes from `analysis/sql/10` to `17`, with results in `analysis/results
 | S1 | A remittance is one payment. An attempt is one receipt plus its disbursement. |
 | S2 | `fct_remittances` keeps all payments, and eligibility flags decide what each metric uses. |
 | S3 | A delivered remittance is a `SUCCESSFUL` payment with at least 1 delivered attempt, counted once. |
-| S4 | `payments.amount` stays exact in staging. Rounding happens only in tests and display. |
+| S4 | `payments.amount` stays exact in staging. Rounding happens only in tests and display, except that `mart_known_issues` compares some amounts at cents to detect an issue pattern. |
 | S5 | The primary attempt is the earliest delivered attempt, and it supplies payment-level fee and promotion. |
 | S6 | Failed rate is `failed / (delivered + failed)`, and cancellations have their own rate. |
 | S7 | No `fct_` model exists without added logic. |
@@ -98,7 +98,7 @@ Applied in order, on lowercase values:
 | 5 | `in_flight` | `status` is `payable`, `wire_released`, `wire_confirmed`, `transmitted`, `in_progress`, `pending`, `to_be_processed`, `on_hold`, `hold_by_compliance`, `hold_by_payer`, or `cancellation_in_progress` |
 | 6 | `unknown` | Anything else; a test fails the build if any row is here |
 
-`status` decides. `status`, `raw_status`, and `provider_status` all stay on the attempt, and `status_conflict_type` records disagreements without changing the result:
+`status` decides. `status`, `raw_status`, and `provider_status` all stay on the attempt, and `status_conflict_type` records the 3 known disagreement patterns without changing the result. Any other combination needs review:
 
 | `status_conflict_type` | Source combination | Rows | `attempt_status` | Note |
 |---|---|---:|---|---|
@@ -181,7 +181,7 @@ Eligibility flags on `fct_remittances`:
 | Provider failed rate | `failed / (delivered + failed)`, for all attempts and first observed attempts. In-flight and missing attempts are excluded. |
 | Provider cancelled rate | `cancelled / (delivered + failed + cancelled)`. |
 | Unsuccessful terminal rate | `(failed + cancelled) / (delivered + failed + cancelled)`. This counts outcomes, and doesn't blame the provider for every cancellation. |
-| Provider failure class | `failure_class` uses the all-attempt failed rate, and `unsuccessful_class` uses the unsuccessful terminal rate, with the thresholds in A9. `is_label_sensitive` is true when they differ. |
+| Provider failure class | `failure_class` uses the all-attempt failed rate, and `unsuccessful_class` uses the unsuccessful terminal rate, with the thresholds in A9. A rate with no attempts to divide by is `insufficient_volume`. `is_label_sensitive` is true when they differ. |
 | Shared beneficiaries | Beneficiary IDs with more than 1 distinct user, across all observed attempts. |
 | Beneficiary segment | Distinct beneficiaries per user on first observed attempts: `none`, `1`, `2-3`, `4-9`, or `10+`. |
 | Chargeback count rate | Flagged payments divided by payments with status `SUCCESSFUL` or `REFUNDED`, by payment month. |

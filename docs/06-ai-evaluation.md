@@ -8,7 +8,7 @@ The models were `claude-haiku-5-5` and `claude-sonnet-5-5`, run through Claude C
 |---|---|---|---|
 | 1 | Do the tests catch realistic logic bugs? | Gaps found and closed | The build caught 41 of 78 seeded bugs. New tests now catch all 35 targeted survivors |
 | 2 | Does an AI agent answer business questions correctly? | Depends on definitions | 36% to 43% from raw tables, 100% with written definitions or the published interface |
-| 3 | Can an AI agent find the cause of a data incident? | Passed | 17 or 18 of 18 seeded incidents found, and 24 of 24 quiet periods correctly called quiet |
+| 3 | Can an AI agent locate a data incident from a complaint? | Passed | 17 or 18 of 18 seeded incidents found, and 24 of 24 quiet periods correctly called quiet |
 | 4 | Can AI triage a new payout status? | Passed, small set | Sonnet matched 29 of 30 values and flagged its one miss for a human |
 | 5 | Can AI review model changes for logic bugs? | Inconclusive | Caught 7 of 7 hidden bugs with the right reason, but 7 is too few to clear the bar |
 | 6 | Do classical machine learning methods add value here? | Mostly no | 1 of 9 passed: calibrated forecast ranges |
@@ -23,6 +23,8 @@ The unit test for sub-cent amounts couldn't fail. dbt casts the expected value t
 
 The tests added afterward catch all 35 targeted survivors: 27 fail the build and 8 warn. The other 2 sit in the semantic layer, and `analysis/check_semantic.py` catches them. Section 3.8 of the design lists the new tests.
 
+An outside review later reran all 83 against the new tests. It found 3 more real gaps: file order for receipts and disbursements, and which rate sets the provider class. Tests for those now fail the build. Of the 4 that still pass, 2 change only the semantic layer, and 2 drop a UTC conversion that changes nothing while the session runs in UTC.
+
 **Why it matters.** Passing tests said little about whether the logic was right. Mutation testing measures that directly, and it needs no AI to rerun.
 
 ## 2. Definitions decide whether an AI agent gets the answer right
@@ -35,11 +37,11 @@ Blind agents answered 14 business questions, such as March's amount transacted o
 | Raw tables and written definitions | 100% | 100% | 11 to 16 |
 | Published interface: marts, semantic layer, and catalog | 100% | 100% | 6 to 7 |
 
-Scores are exact matches, for 2 runs each. On raw tables, agents counted undelivered payments as volume, treated cancellations as failures, and used the wrong months for final chargebacks.
+Scores count answers within the scorer's tolerance, 0.006 points on a percentage and 0.01% otherwise, for 2 runs each. The original answers weren't kept, so they can't be rescored more strictly. On raw tables, agents counted undelivered payments as volume, treated cancellations as failures, and used the wrong months for final chargebacks.
 
-The pass bar was that the interface beats written definitions by 20 points. It failed. A second round with 11 harder questions failed the same way, with both setups at 100%. The interface didn't add accuracy. It cut Sonnet's steps by more than half and its cost by about a fifth, and needed no access to raw tables.
+The pass bar was that the interface beats written definitions by 20 points. It failed. A second round with 11 harder questions failed the same way, with both setups at 100%. The interface didn't add accuracy. In the first round, it cut Sonnet's steps by more than half and its cost by about a fifth, and it needed no access to raw tables.
 
-**Why it matters.** Agreed definitions do the work. Self-service through AI is only as good as the definitions behind it. A governed interface makes it cheaper and keeps raw records closed.
+**Why it matters.** Agreed definitions do the work. Self-service through AI is only as good as the definitions behind it. A governed interface makes it cheaper and avoids raw tables. Its tables still held one row per user, payment, and attempt, so this didn't test an access boundary that shows only totals.
 
 ## 3. An AI agent finds clear incidents
 
@@ -54,7 +56,7 @@ All 24 runs on quiet periods correctly reported no incident. The difference betw
 
 The status relabel and the inflated promotions passed every dbt test at the time. The agents found both.
 
-**Why it matters.** Tests check rules someone wrote down. An agent can follow a vague complaint to its cause, including defects nobody wrote a rule for. It works best on clear incidents.
+**Why it matters.** Tests check rules someone wrote down. An agent can trace a vague complaint to the defect's kind, place, and start, including defects nobody wrote a rule for. The score didn't check its explanation. It works best on clear incidents.
 
 ## 4. Smaller results
 
@@ -86,6 +88,7 @@ One business pattern held under adjustment. First-time senders with a promotion 
 - Seeded incidents and mutants are cleaner than real ones. I wrote most of them, and the agents and the mutant author come from one model family.
 - Results depend on the model version.
 - The shipped harness is slightly stricter than the original runs, and it fixes a timestamp bug in the query tool, so a rerun can differ a little.
+- The scorers read the transcripts that exist, and cached exports aren't checked against the current data. A rerun should confirm every expected run finished and start from empty `work/` folders.
 - Agents ran through Claude's API, so the rows they queried were sent to the model.
 
 ## Reproduce

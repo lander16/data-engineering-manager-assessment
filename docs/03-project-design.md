@@ -412,10 +412,10 @@ vars:
 | Two different rows tie on ID, file, and timestamp | `no_conflicting_versions` fails, and staging doesn't run. |
 | Two identical rows arrive | They collapse to one row. |
 | `dbt build` runs before `load_raw` | Staging fails on the empty or missing table, and dependents are skipped. |
-| `dbt build` crashes halfway | Models hold no incremental state, so rerunning repairs it. |
+| `dbt build` crashes halfway | Staging keeps a load watermark, and everything after it rebuilds, so rerunning repairs it once the load has succeeded. |
 | New data changes pinned numbers | `extract_golden_numbers` and `known_issues_within_baseline` warn. That's their job, and the baselines get reviewed. |
 
-Staging's watermark is `_loaded_at`, not `updated_at`. An `updated_at` filter kept 0 of 2 rows in a test batch, because setting the chargeback flag doesn't appear to move it. A file's name must still sort in arrival order, because a full refresh orders by file. After changing a staging model, run `dbt build --full-refresh`. An incremental run matched a full refresh on all 14 data models, and it saved about 1.5 seconds, so at this size the point is the design and not the speed.
+Staging's watermark is `_loaded_at`, not `updated_at`. An `updated_at` filter kept 0 of 2 rows in a test batch, because setting the chargeback flag doesn't appear to move it. A file's name must still sort in arrival order, because a full refresh orders by file. After changing a staging model, run `dbt build --full-refresh`. On batches that arrived in name order, an incremental run matched a full refresh on all 14 data models, and it saved about 1.5 seconds, so at this size the point is the design and not the speed.
 
 **At a much larger scale,** the same shape holds, and each layer changes in this order:
 
@@ -451,6 +451,7 @@ Unit tests cover logic the real data can't protect:
 |---|---|
 | `stg_payments` | A timestamp near midnight lands in the right month |
 | `stg_payments` | A later file wins when `updated_at` is unchanged |
+| `stg_receipts`, `stg_disbursements` | A later file wins, including over a newer `updated_at` |
 | `int_payout_attempts` | `CANCELLED` with raw `PAID` stays cancelled and flagged; `Failed` with raw `cancelled` stays failed and flagged; a receipt with an orphan disbursement ID becomes `missing`; a new status becomes `unknown` |
 | `int_payout_attempts` | Every status in the mapping lands in its attempt status |
 | `int_payout_attempts` | Attempts follow receipt time even when disbursement times run the other way; a cancelled attempt before a delivery is followed by delivery; an in-flight attempt is never primary |
@@ -460,7 +461,7 @@ Unit tests cover logic the real data can't protect:
 | `mart_recurring_cohorts` | `repeat_rate` divides by users with a full window, and is null when there are none |
 | `mart_monthly_volume`, `mart_chargeback_rate` | A month exactly at the maturity boundary; `is_partial_month` |
 | `mart_monthly_volume` | With senders of 100, 10, 10, and 10, one in four is in the top half; an undelivered sender and a `FAILED` payment with a delivered attempt add no sender or value sent |
-| `mart_provider_failures` | A rate exactly on each class line and a count just under the minimum land in the right class, using small thresholds so fixtures stay short; missing attempts add no row; differing classes set `is_label_sensitive`; with delivered, failed, retried, cancelled, and in-flight attempts, each count and rate uses its own numerator and denominator |
+| `mart_provider_failures` | A rate exactly on each class line and a count just under the minimum land in the right class, using small thresholds so fixtures stay short; missing attempts add no row; differing classes set `is_label_sensitive`; with delivered, failed, retried, cancelled, and in-flight attempts, each count and rate uses its own numerator and denominator; the class uses the overall rate when first attempts never fail; a provider with only in-flight attempts is `insufficient_volume` |
 | `mart_shared_beneficiaries` | Two users on one key return one row, including when one reached it only on a retry; a key with one user returns none |
 
 A unit test can't check a cast's precision, because dbt casts the expected value to the column's own type. `staged_amounts_keep_source_precision` checks it on the real rows instead.
@@ -545,7 +546,7 @@ mf validate-configs
 python analysis/check_semantic.py
 ```
 
-The last command queries each answer metric through MetricFlow and compares it to its mart. The layer also answers questions no mart was built for. This one gives the provider breakdown behind `analysis/sql/17_provider_mix.sql`, with no new model:
+The checker reads `target/semantic_manifest.json`, so run `dbt parse` or `dbt build` after editing `_semantic.yml`. The last command queries each answer metric through MetricFlow and compares it to its mart. The layer also answers questions no mart was built for. This one gives the provider breakdown behind `analysis/sql/17_provider_mix.sql`, with no new model:
 
 ```bash
 mf query --metrics provider_failed_rate,decided_attempts --group-by attempt__provider,attempt__country_code,attempt__payout_type

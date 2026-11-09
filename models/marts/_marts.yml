@@ -81,7 +81,7 @@ models:
     description: |
       Failure rates and classes by payout provider, at the attempt grain.
       Decision: routing, vendor management, and customer experience.
-      Definition: `failed_rate` is failed over delivered plus failed. `unsuccessful_terminal_rate` adds cancellations to both sides, and counts outcomes without assigning fault. `failure_class` uses the first rate, and `unsuccessful_class` uses the second, with the thresholds in `provider_class`.
+      Definition: `failed_rate` is failed over delivered plus failed. `unsuccessful_terminal_rate` adds cancellations to both sides, and counts outcomes without assigning fault. `failure_class` uses the first rate, and `unsuccessful_class` uses the second, with the thresholds in `provider_class`. A provider with no attempts to rate is `insufficient_volume`.
       Excludes: missing attempts, which have no provider, and in-flight attempts from the rates.
       Limitation: rates aren't adjusted for country or payout mix. `failed` and `cancelled` aren't comparable across providers, so read `is_label_sensitive`. Providers 5 and 7 sit within sampling noise of the 3% line.
     meta: {requirement: R9, assumptions: [A8, A9]}
@@ -485,6 +485,25 @@ unit_tests:
     expect:
       rows:
         - {provider: p, attempts: 6, delivered: 2, failed: 2, cancelled: 1, in_flight: 1, rescued_attempts: 2, failed_rate: 0.5, first_attempt_failed_rate: 0.5, retry_failed_rate: 0.5, cancelled_rate: 0.2, unsuccessful_terminal_rate: 0.6, failure_class: medium, unsuccessful_class: high, is_label_sensitive: true}
+
+  - name: provider_classes_use_the_overall_rate_and_need_a_decided_attempt
+    model: mart_provider_failures
+    overrides:
+      vars:
+        provider_class: {low_below: 0.1, medium_below: 0.55, min_attempts: 1}
+    given:
+      - input: ref('int_payout_attempts')
+        rows:
+          - {provider: retries_fail, attempt_status: delivered, attempt_number: 1, is_followed_by_delivery: false}
+          - {provider: retries_fail, attempt_status: delivered, attempt_number: 1, is_followed_by_delivery: false}
+          - {provider: retries_fail, attempt_status: failed, attempt_number: 2, is_followed_by_delivery: false}
+          - {provider: retries_fail, attempt_status: failed, attempt_number: 2, is_followed_by_delivery: false}
+          - {provider: undecided, attempt_status: in_flight, attempt_number: 1, is_followed_by_delivery: false}
+          - {provider: undecided, attempt_status: in_flight, attempt_number: 1, is_followed_by_delivery: false}
+    expect:
+      rows:
+        - {provider: retries_fail, first_attempt_failed_rate: 0, failure_class: medium, unsuccessful_class: medium, is_label_sensitive: false}
+        - {provider: undecided, first_attempt_failed_rate: null, failure_class: insufficient_volume, unsuccessful_class: insufficient_volume, is_label_sensitive: false}
 
   - name: two_users_on_one_key_are_shared_even_on_a_retry
     model: mart_shared_beneficiaries

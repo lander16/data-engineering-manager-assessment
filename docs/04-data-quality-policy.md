@@ -31,7 +31,7 @@ An unknown status fails on purpose. A new provider value must get a mapping befo
 | Facts and marts | Totals reconcile, and the 50% rule holds | `marts_reconcile_to_facts`, `top_users_cross_half` |
 | Known issues | No issue moves from its baseline, up or down. A drop can mean a broken definition | `known_issues_within_baseline` |
 | Headlines | Pinned numbers, mature months, and provider classes hold | `extract_golden_numbers` |
-| Logic | Rules hold on synthetic edge cases | 27 unit tests |
+| Logic | Rules hold on synthetic edge cases | 30 unit tests |
 | Semantic layer | Metrics match the marts | `analysis/check_semantic.py`, run by hand because MetricFlow is optional |
 
 ## Known issues by owner

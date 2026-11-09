@@ -40,12 +40,14 @@ classified as (
         *,
         case
             when attempts < {{ classes.min_attempts }} then 'insufficient_volume'
+            when failed_rate is null then 'insufficient_volume'
             when failed_rate < {{ classes.low_below }} then 'low'
             when failed_rate < {{ classes.medium_below }} then 'medium'
             else 'high'
         end as failure_class,
         case
             when attempts < {{ classes.min_attempts }} then 'insufficient_volume'
+            when unsuccessful_terminal_rate is null then 'insufficient_volume'
             when unsuccessful_terminal_rate < {{ classes.low_below }} then 'low'
             when unsuccessful_terminal_rate < {{ classes.medium_below }} then 'medium'
             else 'high'

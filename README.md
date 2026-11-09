@@ -13,9 +13,9 @@ dbt run-operation load_raw
 dbt build
 ```
 
-`dbt build` passes 94 items with 0 errors and 0 warnings. Load before you build, because unit tests need the `raw` tables to exist. Close any DuckDB session on `felix.duckdb` first, since it allows one writer.
+`dbt build` passes 97 items with 0 errors and 0 warnings. Load before you build, because unit tests need the `raw` tables to exist. Close any DuckDB session on `felix.duckdb` first, since it allows one writer.
 
-New data goes in `data/` as `<table>_YYYY-MM-DD.csv`, holding each record's full current state. Run the same two commands. `load_raw` loads only files it hasn't seen, and staging reads only rows loaded since its last run. After changing a staging model, run `dbt build --full-refresh`.
+New data goes in `data/` as `<table>_YYYY-MM-DD.csv`, holding each record's full current state. Run the same two commands. `load_raw` loads only files it hasn't seen, and staging reads only rows loaded since its last run. Files must not change after loading, and new names must sort after earlier ones. If an earlier-named file arrives late, or after changing a staging model, run `dbt build --full-refresh`.
 
 ## Results
 
@@ -44,7 +44,7 @@ New data goes in `data/` as `<table>_YYYY-MM-DD.csv`, holding each record's full
 | 2026-08 | 101,232 | $33,614,833 | 14.0% | 0.054% | No |
 | 2026-09 (partial) | 73,036 | $24,640,105 | 13.6% | 0.032% | No |
 
-**Providers.** The failed rate is `failed / (delivered + failed)`. The unsuccessful rate adds cancellations to both sides. Classes are `low` under 1%, `medium` under 3%, and `high` otherwise, with `insufficient_volume` under 1,000 attempts.
+**Providers.** The failed rate is `failed / (delivered + failed)`. The unsuccessful rate adds cancellations to both sides. Classes are `low` under 1%, `medium` under 3%, and `high` otherwise, with `insufficient_volume` under 1,000 attempts or with no delivered or failed attempts.
 
 | Provider | Attempts | Failed rate | Class | Unsuccessful rate | Class |
 |---|---:|---:|---|---:|---|
@@ -89,18 +89,18 @@ A remittance is one payment. A payout attempt is one receipt plus its disburseme
 | R12 Tests | `models/*/_*.yml`, `tests/` |
 | R13 Repository | This repository |
 
-The marts answer each question. A small semantic layer in `models/marts/_semantic.yml` also defines 13 metrics on the same grains, so a tool or an agent can query them by any dimension. It's optional, and `dbt build` doesn't need it. All 8 checks against the marts match, and `docs/03-project-design.md` section 3.12 has the commands.
+The marts answer each question. A small semantic layer in `models/marts/_semantic.yml` also defines 13 metrics on the same grains, so a tool or an agent can query them by the dimensions those grains carry. It's optional, and `dbt build` doesn't need it. All 8 checks against the marts match, and `docs/03-project-design.md` section 3.12 has the commands.
 
 ## Where the tests are
 
-There are 79 tests. dbt keeps most of them in YAML, next to the models, so `tests/` holds only the custom ones.
+There are 82 tests. dbt keeps most of them in YAML, next to the models, so `tests/` holds only the custom ones.
 
 | Kind | Count | Where |
 |---|---:|---|
 | Generic tests: keys, relationships, accepted values, not null, country codes | 44 | `_staging.yml`, `_intermediate.yml`, `_marts.yml` |
 | Conflicting-version test on each source | 3 | `tests/generic/`, applied in `_sources.yml` |
 | Singular tests: reconciliation, the 50% rule, issue baselines, pinned numbers, source precision | 5 | `tests/` |
-| Unit tests on synthetic rows | 27 | The `unit_tests:` block in each YAML file |
+| Unit tests on synthetic rows | 30 | The `unit_tests:` block in each YAML file |
 
 Errors mean a grain or definition broke. Warnings mean a known issue changed, a new raw status arrived, or a pinned number moved. `docs/04-data-quality-policy.md` sets out the severity rules and owners.
 
@@ -113,7 +113,7 @@ The assessment leaves these open. `docs/02-assumptions-and-rules.md` gives the r
 - **Successful payments with no receipt** are excluded, because there's no payout evidence.
 - **Payouts still in flight** are excluded, and `all_successful_payments_usd` ($237.73M) shows the wider total.
 - **Recurring** means two consecutive delivered remittances more than 1 day and at most 90 days apart. Recent users have had less time, so `mart_recurring_cohorts` also gives a repeat rate on full windows.
-- **When `status` and `raw_status` disagree,** `status` decides, and the conflict stays flagged.
+- **When `status` and `raw_status` disagree,** `status` decides, and the 3 known conflict patterns stay flagged.
 - **The chargeback flag** means a dispute was raised, whatever the outcome. A month counts as mature 120 days after it ends, based on common card dispute windows.
 
 `dbt build --vars '{transacted_measure: value_sent_usd}'` shows what an assumption is worth. Run a default `dbt build` afterward.
@@ -137,9 +137,9 @@ The assessment leaves these open. `docs/02-assumptions-and-rules.md` gives the r
 
 ## On BigQuery and at scale
 
-The models use standard SQL and dbt's cross-database macros. On BigQuery, replace `load_raw` with `bq load` or external tables, then change type names and the 3 UTC date expressions.
+The models use standard SQL and dbt's cross-database macros. On BigQuery, replace `load_raw` with `bq load` or external tables, then change type names, the 3 UTC date expressions, and the conflict test.
 
-The load and staging are already incremental, using load time as the watermark. `updated_at` doesn't appear to move with the chargeback flag, so a filter on it would skip a late chargeback. An incremental run matches a full refresh across all 14 data models. At larger scale, facts would recompute only payments touched by a batch. `docs/03-project-design.md` section 3.7 has the detail.
+The load and staging are already incremental, using load time as the watermark. `updated_at` doesn't appear to move with the chargeback flag, so a filter on it would skip a late chargeback. An incremental run matched a full refresh across all 14 data models on batches that arrived in name order. At larger scale, facts would recompute only payments touched by a batch. `docs/03-project-design.md` section 3.7 has the detail.
 
 ## If I owned this
 
@@ -159,4 +159,4 @@ After that, I'd open it up as self-service: teams request access to data product
 
 `docs/` holds the assessment analysis (01), rules and evidence (02), design (03), data quality policy (04), business findings (05), and AI evaluation (06). `analysis/` holds the profiling SQL, results, and findings.
 
-AI coding assistants helped with profiling, drafting documents, writing the SQL, and reviewing it. The definitions and decisions are mine, and I checked the numbers against the data. I also tested where AI helps a data team, with a pass bar set before each run. AI-written logic bugs exposed gaps in the tests, which are now closed. Agents answered business questions correctly only when they had definitions. `docs/06-ai-evaluation.md` has the results, including the failures.
+AI coding assistants helped with profiling, drafting documents, writing the SQL, and reviewing it. The definitions and decisions are mine, and I checked the numbers against the data. I also tested where AI helps a data team, with a pass bar set before each run. AI-written logic bugs exposed gaps in the tests, and new tests catch all the targeted ones. Agents answered business questions correctly only when they had definitions. `docs/06-ai-evaluation.md` has the results, including the failures.

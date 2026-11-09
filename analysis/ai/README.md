@@ -34,7 +34,7 @@ python analysis/ai/mutation/run_mutants.py --all        # all 83
 python analysis/ai/mutation/run_mutants.py A05 B02      # chosen mutants
 ```
 
-`--jobs 3` runs three at a time. Each mutant takes about 30 seconds and 1 GB of disk while it runs. K02 and K03 change the semantic YAML, which the dbt tests don't cover, so they survive here. `analysis/check_semantic.py` catches them.
+`--jobs 3` runs three at a time. Each mutant takes about 30 seconds and 1 GB of disk while it runs. K02 and K03 change the semantic YAML, which the dbt tests don't cover, so they survive here. `analysis/check_semantic.py` catches them after `dbt parse` refreshes the manifest. Parse again after restoring the YAML.
 
 ## Blind agents
 
